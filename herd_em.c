@@ -102,7 +102,7 @@ int main(void)
                 carry_on = 0;
             }
 
-    //        jty_iterate();
+            jty_iterate();
 
         }
 
@@ -120,8 +120,6 @@ int main(void)
     fprintf(stderr, "FPS (logic): %f\n", (float)c_frame/((float)(curr_t - start_t)/1000));
     fprintf(stderr, "FPS (rendered): %f\n", (float)p_frame/((float)(curr_t - start_t)/1000));
 #endif
-
-
 
     jty_eng_free();
 

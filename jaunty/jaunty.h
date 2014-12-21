@@ -29,6 +29,7 @@ typedef struct jty_eng jty_eng;
 typedef struct jty_map jty_map;
 typedef struct jty_actor jty_actor;
 typedef struct jty_actor_ls jty_actor_ls;
+typedef struct jty_actor_i_ls jty_actor_i_ls;
 
 struct jty_map{
 
@@ -63,11 +64,19 @@ struct jty_actor{       /* A character in the game */
 
     GLuint texture; /* Texture that is this actor's
                                      sprite */
+
+    jty_actor_i_ls *i_ls;      /*  List of actor's iteration handlers */
 };
 
 struct jty_actor_ls{         /* List of actors */
     jty_actor *actor; /* Pointer to actor */
     jty_actor_ls *next; /* Pointer to the next node of the list */
+};
+
+struct jty_actor_i_ls{      /* List of actor iterators */
+    void (*i_handler)(struct jty_actor *); /* Pointer to the iteration
+                                             handler */
+    jty_actor_i_ls *next;
 };
 
 struct jty_eng{
@@ -90,12 +99,6 @@ struct jty_eng{
 struct jty_eng jty_engine;
 
 
-/* Frees all resources allocated to the engine */
-void jty_eng_free(void);
-
-/* Creates the engine */
-jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h);
-
 /* Frees all resources allocated to 'map' */
 void jty_map_free(jty_map *map);
 
@@ -117,8 +120,20 @@ jty_map *jty_new_map(
  * file 'sprite_filename' contains the sprites to be used for this actor. */
 jty_actor *jty_new_actor(int w, int h, const char *sprite_filename);
 
+/* Add a handler that will get called once each logic frame for the actor */
+void jty_actor_add_i_handler(jty_actor *actor,
+                             void (*i_handler)(struct jty_actor *));
+
+/* Frees all resources allocated to the engine */
+void jty_eng_free(void);
+
+/* Creates the engine */
+jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h);
 
 /* Paint everything onto the screen */
 void jty_paint(void);
+
+/* Carry out a logic frame */
+void jty_iterate(void);
 
 #endif

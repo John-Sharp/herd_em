@@ -281,6 +281,8 @@ static jty_actor *jty_actor_create(int w, int h, const char *sprite_filename)
     actor->p2w = mkp2(w);
     actor->p2h = mkp2(h);
 
+    actor->i_ls = NULL;
+
     /* Check sprite size doesn't exceed openGL's maximum texture size */
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_size);
 
@@ -421,7 +423,43 @@ static int jty_actor_paint(jty_actor *actor)
     return 1;
 }
 
+void jty_actor_add_i_handler(jty_actor *actor,
+                             void (*i_handler)(struct jty_actor *))
+{
+    jty_actor_i_ls *ls;
+    jty_actor_i_ls *next;
+    next = actor->i_ls;
 
+    if((ls = malloc(sizeof(*(ls)))) == NULL){
+        fprintf(stderr, "Error allocating list node\n");
+        exit(1);
+    }
+
+    ls->next = next;
+    ls->i_handler = i_handler;
+
+    actor->i_ls = ls;
+    return;
+}
+
+void jty_actor_iterate(jty_actor *actor)
+{
+    actor->px = actor->x;
+    actor->py = actor->y;
+
+    actor->x += actor->vx;
+    actor->y += actor->vy;
+
+    actor->vx += actor->ax;
+    actor->vy += actor->ay;
+
+    jty_actor_i_ls *pg;
+    for(pg = actor->i_ls; pg != NULL; pg = pg->next){
+        pg->i_handler(actor);
+    }
+    
+    return;
+}
 
 void jty_paint(void)
 {
@@ -437,6 +475,19 @@ void jty_paint(void)
 
     return;
 }
+
+void jty_iterate()
+{
+    jty_actor_ls *pg;
+
+    /* Iterate each actor */
+    for(pg = jty_engine.actors; pg != NULL; pg = pg->next){
+        jty_actor_iterate(pg->actor);
+    }
+
+    return;
+}
+
 
 void jty_eng_free(void)
 {
