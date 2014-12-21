@@ -27,6 +27,8 @@
 
 typedef struct jty_eng jty_eng;
 typedef struct jty_map jty_map;
+typedef struct jty_actor jty_actor;
+typedef struct jty_actor_ls jty_actor_ls;
 
 struct jty_map{
 
@@ -34,6 +36,7 @@ struct jty_map{
     int tw, th;        /* Size of one tile sprite (pixels) */
 
     unsigned int *c_map; /* 2D array of collision tile indicies */
+
 
     SDL_Rect map_rect; /* SDL_Rect describing the position, width
                           and height of map that is visible */
@@ -44,13 +47,40 @@ struct jty_map{
 
 };
 
+struct jty_actor{       /* A character in the game */
+    unsigned int uid;           /* Unique identifier for actor */
+    GLfloat x, y;               /* x, y coordinates of actor */
+    GLfloat px, py;             /* x, y coordinates from previous frame */
+    GLfloat gx, gy;             /* x, y coordinates of actor's interpolated
+                                  position in fractional frame */
+
+    double vx, vy;              /* x and y components of velocity */
+    double ax, ay;              /* x and y components of acceleration */
+                                   
+    int w, h;                   /* Width and height of actor */
+    int p2w, p2h;               /* Width and height of actor to nearest power
+                                   of two (as required by openGL) */
+
+    GLuint texture; /* Texture that is this actor's
+                                     sprite */
+};
+
+struct jty_actor_ls{         /* List of actors */
+    jty_actor *actor; /* Pointer to actor */
+    jty_actor_ls *next; /* Pointer to the next node of the list */
+};
+
 struct jty_eng{
 
 #ifdef DEBUG_MODE
     int print_messages;
 #endif
 
+    double elapsed_frames;   /* Frame that the game is on */
+
     jty_map *map; /* Current map of the game */
+
+    jty_actor_ls *actors; /* List of actors that are in the engine */
 
     SDL_Surface *screen; /* Main game window surface */
 
@@ -66,7 +96,7 @@ void jty_eng_free(void);
 /* Creates the engine */
 jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h);
 
-/* Frees all resource allocated to 'map' */
+/* Frees all resources allocated to 'map' */
 void jty_map_free(jty_map *map);
 
 /* Creates a map, 'w' tiles wide by 'h' tiles high. The map is made out of
@@ -80,6 +110,13 @@ jty_map *jty_new_map(
         int w, int h, int tw, int th,
         const char *filename, const char *k, const char *m,
         const char *ck, const char *cm);
+
+/* Creates a new actor, in 'map',
+ * inside the group(s) satisfying the group number
+ * 'groupnum'. Actor has width 'w', height 'h' and the image
+ * file 'sprite_filename' contains the sprites to be used for this actor. */
+jty_actor *jty_new_actor(int w, int h, const char *sprite_filename);
+
 
 /* Paint everything onto the screen */
 void jty_paint(void);
