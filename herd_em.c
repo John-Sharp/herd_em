@@ -6,6 +6,13 @@
 
 #define DEBUG_MODE
 
+void test_m_handler(jty_actor *a, int i, int j, char tile_type)
+{
+    fprintf(stderr, "colliding with something\n");
+    return;
+
+}
+
 int main(void)
 {
     int map_w = 25, map_h = 18, tw = 32, th = 32;
@@ -43,7 +50,6 @@ int main(void)
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "opppppppppppppppppppppppq",
-                "ab",
                 "bbbbbbbbbbbbbbbbbbbbbbbbb"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
@@ -71,7 +77,9 @@ int main(void)
 
     actor->x = actor->px = 400;
     actor->y = actor->py = 300;
-    actor->vx = 0.05;
+    actor->vx = 0.5;
+
+    jty_actor_add_m_handler(actor, test_m_handler, "b");
 
     start_t = SDL_GetTicks();
 
@@ -105,9 +113,6 @@ int main(void)
             jty_iterate();
 
         }
-
-
-
 
         SDL_PumpEvents();
         if(SDL_PeepEvents(&selection, 1,

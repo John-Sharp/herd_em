@@ -131,26 +131,14 @@ static int jty_map_from_string(jty_map *map,
     return 1;
 }
 
-static int jty_map_set_cmap(jty_map *map, const char *ck,
-                            const char *cm)
+static int jty_map_set_cmap(jty_map *map, const char *cm)
 {
-    map->c_map = malloc(sizeof(*(map->c_map)) * strlen(cm));
+    map->c_map = malloc(sizeof(*(map->c_map)) * map->w * map->h);
+    memcpy(map->c_map, cm, sizeof(*(map->c_map)) * map->w * map->h);
 
     if(map->c_map == NULL){
         return 0;
     }
-
-    int i, j;
-    int z = 0;
-    int index;
-    unsigned char (*map_ptr)[map->w] = (unsigned char(*)[map->w])map->c_map;
-
-    for(j = map->h - 1; j >= 0; j--) 
-        for(i = 0; i < map->w; i++){
-            index = (strchr(ck, cm[z]) - ck) / (sizeof(unsigned char)) + 1;
-            map_ptr[j][i] = index;
-            z++;
-        }
 
     return 1;
 }
@@ -158,7 +146,7 @@ static int jty_map_set_cmap(jty_map *map, const char *ck,
 jty_map *jty_new_map(
         int w, int h, int tw, int th,
         const char *filename, const char *k, const char *m,
-        const char *ck, const char *cm)
+        const char *cm)
 {
     jty_map *map = malloc(sizeof(*map));
     if(!map)
@@ -186,7 +174,7 @@ jty_map *jty_new_map(
         return NULL;
     }
 
-    if(!jty_map_set_cmap(map, ck, cm)){
+    if(!jty_map_set_cmap(map, cm)){
         jty_map_free(map);
         return NULL;
     }
@@ -282,6 +270,7 @@ static jty_actor *jty_actor_create(int w, int h, const char *sprite_filename)
     actor->p2h = mkp2(h);
 
     actor->i_ls = NULL;
+    actor->m_h_ls = NULL;
 
     /* Check sprite size doesn't exceed openGL's maximum texture size */
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_size);
@@ -457,7 +446,122 @@ void jty_actor_iterate(jty_actor *actor)
     for(pg = actor->i_ls; pg != NULL; pg = pg->next){
         pg->i_handler(actor);
     }
-    
+
+    /* 
+     * Find which tiles are colliding with
+     * this actor's bounding box 
+     *
+     */
+    int i_min, i_max, j_min, j_max;
+    int i, j, k;
+    jty_map_handle_ls *mhl;
+    char tile_type;
+    unsigned char (*c_map)[jty_engine.map->w] =
+        (void *)jty_engine.map->c_map;
+
+    i_min = (actor->x - actor->w / 2.) / jty_engine.map->tw;
+    i_max = ceil((actor->x + actor->w / 2.) / jty_engine.map->tw);
+    j_min = (actor->y - actor->h / 2.) / jty_engine.map->th;
+    j_max = ceil((actor->y + actor->h / 2.) / jty_engine.map->th);
+
+#ifdef DEBUG_MODE
+    if (jty_engine.print_messages) {
+        fprintf(stderr, "Tiles between %d <= i <= %d"
+                " and %d <= j <= %d collided with by actor %d\n",
+                i_min, i_max, j_min, j_max, actor->uid);
+    }
+#endif
+
+    /* Iterate through the map-handlers */
+    for(j = j_min; j <= j_max; j++)
+        for(i = i_min; i <= i_max; i++)
+            for(mhl = actor->m_h_ls; mhl != NULL; mhl = mhl->next) {
+                k = 0;
+                while((tile_type = mhl->tiles[k])) {
+                    if(tile_type == c_map[j][i])
+                        mhl->map_handler(actor, i, j, tile_type);
+                    k++;
+                }
+            }
+
+    return;
+}
+
+static jty_map_handle_ls *jty_actor_add_m_handler_int(jty_actor *actor,
+                                              m_handler map_handler,
+                                              char *tiles)
+{
+    jty_map_handle_ls *hp;
+    char *tiles_copy;
+
+    hp = malloc(sizeof(*hp));
+
+    if(hp == NULL){
+        fprintf(stderr, "Unable to allocate memory for a "
+                "list handler node.\n");
+        exit(1);
+    }
+
+    tiles_copy = malloc(sizeof(*tiles_copy) * (strlen(tiles) + 1));
+    if(tiles_copy == NULL) {
+        fprintf(stderr, "Unable to alocate memory for map "
+                "handler tiles copy.\n");
+    }
+                
+    strcpy(tiles_copy, tiles);
+
+    hp->tiles = tiles_copy;
+    hp->map_handler = map_handler;
+    hp->next = actor->m_h_ls;
+
+#ifdef DEBUG_MODE
+    fprintf(stderr, "\nCreating map handler for actor %d\n"
+                    "tiles %s", actor->uid, tiles_copy);
+#endif
+
+    return hp;
+}
+
+void jty_actor_add_m_handler(jty_actor *actor,
+                             m_handler map_handler,
+                             char *tiles)
+{
+
+    actor->m_h_ls = jty_actor_add_m_handler_int(
+            actor,
+            map_handler,
+            tiles);
+
+    return;
+}
+
+static jty_map_handle_ls *jty_actor_rm_m_handler_int(jty_map_handle_ls *ls,
+                                             jty_actor *actor,
+                                             m_handler map_handler)
+{
+    if(ls == NULL)
+        return NULL;
+
+    if(ls->map_handler == map_handler){
+        jty_map_handle_ls *p = ls->next;
+        free(ls->tiles);
+        free(ls);
+        return p;
+    }
+
+    ls->next = jty_actor_rm_m_handler_int(ls->next, actor, map_handler);
+    return ls;
+}
+
+void jty_actor_rm_m_handler(jty_actor *actor,
+                            m_handler map_handler)
+{
+
+    actor->m_h_ls = 
+        jty_actor_rm_m_handler_int(actor->m_h_ls,
+            actor,
+            map_handler);
+
     return;
 }
 
@@ -479,6 +583,20 @@ void jty_paint(void)
 void jty_iterate()
 {
     jty_actor_ls *pg;
+
+#ifdef DEBUG_MODE
+    static double last_t = 0;
+    double curr_t;
+
+    curr_t = SDL_GetTicks();
+    
+    if( curr_t - last_t >= POLL_TIME * 1000){
+        jty_engine.print_messages = 1;
+        last_t = curr_t;
+    }else
+        jty_engine.print_messages = 0;
+
+#endif
 
     /* Iterate each actor */
     for(pg = jty_engine.actors; pg != NULL; pg = pg->next){

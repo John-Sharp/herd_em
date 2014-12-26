@@ -12,7 +12,7 @@
 #define DEBUG_MODE
 
 #ifdef DEBUG_MODE
-#define POLL_TIME 2 /* Number of seconds that must elapse before a 
+#define POLL_TIME 0.2 /* Number of seconds that must elapse before a 
                        repeated debug message from an iterator 
                        is sent out again */
 #endif
@@ -30,13 +30,17 @@ typedef struct jty_map jty_map;
 typedef struct jty_actor jty_actor;
 typedef struct jty_actor_ls jty_actor_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
+typedef struct jty_actor_i_ls jty_actor_i_ls;
+typedef struct jty_map_handle_ls jty_map_handle_ls;
+
+typedef void (*m_handler)(jty_actor *actor, int i, int j, char tile_type);
 
 struct jty_map{
 
     int w, h;          /* Size of map (tiles) */
     int tw, th;        /* Size of one tile sprite (pixels) */
 
-    unsigned int *c_map; /* 2D array of collision tile indicies */
+    char *c_map; /* Array of collision tile types */
 
 
     SDL_Rect map_rect; /* SDL_Rect describing the position, width
@@ -66,6 +70,8 @@ struct jty_actor{       /* A character in the game */
                                      sprite */
 
     jty_actor_i_ls *i_ls;      /*  List of actor's iteration handlers */
+
+    jty_map_handle_ls *m_h_ls; /* List of map collision handlers */
 };
 
 struct jty_actor_ls{         /* List of actors */
@@ -77,6 +83,16 @@ struct jty_actor_i_ls{      /* List of actor iterators */
     void (*i_handler)(struct jty_actor *); /* Pointer to the iteration
                                              handler */
     jty_actor_i_ls *next;
+};
+
+struct jty_map_handle_ls{ /* A list of map collision handlers */
+    jty_map_handle_ls *next;
+    char *tiles; /* Array of tiles that this handler should 
+                    be fired for */
+    m_handler map_handler;
+                /* Pointer to the 
+                   collision handler
+                   function */
 };
 
 struct jty_eng{
@@ -112,7 +128,7 @@ void jty_map_free(jty_map *map);
 jty_map *jty_new_map(
         int w, int h, int tw, int th,
         const char *filename, const char *k, const char *m,
-        const char *ck, const char *cm);
+        const char *cm);
 
 /* Creates a new actor, in 'map',
  * inside the group(s) satisfying the group number
@@ -123,6 +139,17 @@ jty_actor *jty_new_actor(int w, int h, const char *sprite_filename);
 /* Add a handler that will get called once each logic frame for the actor */
 void jty_actor_add_i_handler(jty_actor *actor,
                              void (*i_handler)(struct jty_actor *));
+
+/* Add a handler that will get caled each time 'actor' hits a tile in 'tiles'.
+ * The tiles are given as a string in the same way as the map gets specified,
+ * and the same key as was is used in the actor's primary map. */
+void jty_actor_add_m_handler(jty_actor *actor,
+                             m_handler map_hander,
+                             char *tiles);
+
+/* Removes the map handler */
+void jty_actor_rm_m_handler(jty_actor *actor,
+                            m_handler map_handler);
 
 /* Frees all resources allocated to the engine */
 void jty_eng_free(void);
