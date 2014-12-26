@@ -460,9 +460,9 @@ void jty_actor_iterate(jty_actor *actor)
         (void *)jty_engine.map->c_map;
 
     i_min = (actor->x - actor->w / 2.) / jty_engine.map->tw;
-    i_max = ceil((actor->x + actor->w / 2.) / jty_engine.map->tw);
+    i_max = (actor->x + actor->w / 2.) / jty_engine.map->tw;
     j_min = (actor->y - actor->h / 2.) / jty_engine.map->th;
-    j_max = ceil((actor->y + actor->h / 2.) / jty_engine.map->th);
+    j_max = (actor->y + actor->h / 2.) / jty_engine.map->th;
 
 #ifdef DEBUG_MODE
     if (jty_engine.print_messages) {
@@ -488,7 +488,7 @@ void jty_actor_iterate(jty_actor *actor)
 }
 
 static jty_map_handle_ls *jty_actor_add_m_handler_int(jty_actor *actor,
-                                              m_handler map_handler,
+                                              jty_m_handler map_handler,
                                               char *tiles)
 {
     jty_map_handle_ls *hp;
@@ -523,7 +523,7 @@ static jty_map_handle_ls *jty_actor_add_m_handler_int(jty_actor *actor,
 }
 
 void jty_actor_add_m_handler(jty_actor *actor,
-                             m_handler map_handler,
+                             jty_m_handler map_handler,
                              char *tiles)
 {
 
@@ -537,7 +537,7 @@ void jty_actor_add_m_handler(jty_actor *actor,
 
 static jty_map_handle_ls *jty_actor_rm_m_handler_int(jty_map_handle_ls *ls,
                                              jty_actor *actor,
-                                             m_handler map_handler)
+                                             jty_m_handler map_handler)
 {
     if(ls == NULL)
         return NULL;
@@ -554,7 +554,7 @@ static jty_map_handle_ls *jty_actor_rm_m_handler_int(jty_map_handle_ls *ls,
 }
 
 void jty_actor_rm_m_handler(jty_actor *actor,
-                            m_handler map_handler)
+                            jty_m_handler map_handler)
 {
 
     actor->m_h_ls = 

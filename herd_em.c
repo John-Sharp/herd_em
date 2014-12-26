@@ -13,6 +13,45 @@ void test_m_handler(jty_actor *a, int i, int j, char tile_type)
 
 }
 
+void input_handler(struct jty_actor *actor)
+{
+    SDL_Event selection;
+
+    if(SDL_PeepEvents(&selection, 1,
+                SDL_GETEVENT, SDL_EVENTMASK(SDL_KEYDOWN) |
+                              SDL_EVENTMASK(SDL_KEYUP))){
+        switch(selection.key.keysym.sym){
+            case SDLK_UP:
+                if(selection.key.type == SDL_KEYDOWN)
+                    actor->vy = -0.5;
+                else
+                    actor->vy = 0;
+                break;
+            case SDLK_DOWN:
+                if(selection.key.type == SDL_KEYDOWN)
+                    actor->vy = 0.5;
+                else
+                    actor->vy = 0;
+                break;
+            case SDLK_LEFT:
+                if(selection.key.type == SDL_KEYDOWN)
+                    actor->vx = -0.5;
+                else
+                    actor->vx = 0;
+                break;
+            case SDLK_RIGHT:
+                if(selection.key.type == SDL_KEYDOWN)
+                    actor->vx = 0.5;
+                else
+                    actor->vx = 0;
+                break;
+            default:
+                break;
+
+        }
+    }
+}
+
 int main(void)
 {
     int map_w = 25, map_h = 18, tw = 32, th = 32;
@@ -77,8 +116,9 @@ int main(void)
 
     actor->x = actor->px = 400;
     actor->y = actor->py = 300;
-    actor->vx = 0.5;
+    actor->vx = 0.0;
 
+    jty_actor_add_i_handler(actor, input_handler);
     jty_actor_add_m_handler(actor, test_m_handler, "b");
 
     start_t = SDL_GetTicks();

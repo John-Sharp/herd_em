@@ -33,7 +33,8 @@ typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_map_handle_ls jty_map_handle_ls;
 
-typedef void (*m_handler)(jty_actor *actor, int i, int j, char tile_type);
+typedef void (*jty_i_handler)(struct jty_actor *actor);
+typedef void (*jty_m_handler)(jty_actor *actor, int i, int j, char tile_type);
 
 struct jty_map{
 
@@ -89,7 +90,7 @@ struct jty_map_handle_ls{ /* A list of map collision handlers */
     jty_map_handle_ls *next;
     char *tiles; /* Array of tiles that this handler should 
                     be fired for */
-    m_handler map_handler;
+    jty_m_handler map_handler;
                 /* Pointer to the 
                    collision handler
                    function */
@@ -144,12 +145,12 @@ void jty_actor_add_i_handler(jty_actor *actor,
  * The tiles are given as a string in the same way as the map gets specified,
  * and the same key as was is used in the actor's primary map. */
 void jty_actor_add_m_handler(jty_actor *actor,
-                             m_handler map_hander,
+                             jty_m_handler map_hander,
                              char *tiles);
 
 /* Removes the map handler */
 void jty_actor_rm_m_handler(jty_actor *actor,
-                            m_handler map_handler);
+                            jty_m_handler map_handler);
 
 /* Frees all resources allocated to the engine */
 void jty_eng_free(void);
