@@ -112,7 +112,8 @@ int main(void)
         return -1;
     }
 
-    actor = jty_new_actor(104, 68, "images/sprites/dog/0.png");
+    actor = jty_new_actor(104, 68, "images/sprites/dog/0.png", 
+            "images/c_sprites/dog/0.png");
 
     actor->x = actor->px = 400;
     actor->y = actor->py = 300;

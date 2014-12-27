@@ -10,6 +10,98 @@
  * that is a whole power of 2 (rounding up) */ 
 #define mkp2(a) (int)powf(2.0, ceilf(logf((float)a)/logf(2.0)))
 
+/* Utility function to get a pixel at ('x', 'y') from a surface */
+Uint32 get_pixel(SDL_Surface *surface, int x, int y)
+{
+    int bpp = surface->format->BytesPerPixel;
+    /* Here p is the address to the pixel we want to retrieve */
+    Uint8 *p = (Uint8 *)surface->pixels + y * surface->pitch + x * bpp;
+
+    switch(bpp) {
+    case 1:
+        return *p;
+        break;
+
+    case 2:
+        return *(Uint16 *)p;
+        break;
+
+    case 3:
+        if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
+            return p[0] << 16 | p[1] << 8 | p[2];
+        else
+            return p[0] | p[1] << 8 | p[2] << 16;
+        break;
+
+    case 4:
+        return *(Uint32 *)p;
+        break;
+
+    default:
+        return 0;       /* shouldn't happen, but avoids warnings */
+    }
+}
+
+void printbitssimple(unsigned long n)
+{
+	unsigned long i;
+	i = 1UL <<(sizeof(i) * CHAR_BIT - 1);
+
+	while (i > 0) {
+		if (n & i)
+			fprintf(stderr, "1");
+		else
+			fprintf(stderr, "0");
+		i >>= 1;
+	}
+}
+
+void print_overlap(struct jty_overlap *overlap)
+{
+    fprintf(stderr, "Overlap is: a1 offset: (%f, %f)\n"
+            "   a2 offset: (%f, %f)\n"
+            "   overlap: (%f, %f)\n",
+            overlap->x.a1_offset, overlap->y.a1_offset,
+            overlap->x.a2_offset, overlap->y.a2_offset, 
+            overlap->x.overlap, overlap->y.overlap);
+    return;
+}
+
+/* Calculates the linear overlap of lines going from (a1 -> a2) and (b1->b2) */
+int jty_calc_overlap_l(double a1, double a2, double b1, double b2,
+        struct jty_overlap_l *overlap)
+{
+
+    if(a1 < b1){
+        if(a2 < b1){
+            return 0;
+        }
+        overlap->a1_offset = b1 - a1;
+        overlap->a2_offset = 0;
+
+        if(a2 < b2){
+            overlap->overlap = a2 - b1;
+        }else{
+            overlap->overlap = b2 - b1;
+        }
+
+    }else{
+        if(b2 < a1){
+            return 0;
+        }
+
+        overlap->a1_offset = 0;
+        overlap->a2_offset = a1 - b1;
+
+        if(b2 < a2){
+            overlap->overlap = b2 - a1;
+        }else{
+            overlap->overlap = a2 - a1;
+        }
+
+    }
+    return 1;
+}
 
 /* Engine functions */
 
@@ -243,11 +335,78 @@ void jty_actor_free(jty_actor *actor)
     if(glIsTexture(actor->texture))
         glDeleteTextures(1, &(actor->texture));
 
+    free(actor->c_field);
+
     free(actor);
     return;
 }
 
-static jty_actor *jty_actor_create(int w, int h, const char *sprite_filename)
+
+void jty_actor_load_c_fields(jty_actor *actor,const char *c_sprite_filename)
+{
+    SDL_Surface *image;
+    /* Height of the bitmask array */
+    int ba_h = ceil(actor->h / JTY_CTH);
+    /* Width of the bitmask */
+    int ba_w = ceil(actor->w / JTY_CTW);
+
+    int i, j;
+
+    Uint32 maskcolour;
+
+    if(ba_w > JTY_BFBW){
+        fprintf(stderr, "Error! Collision tilemap is too wide "
+                "for bitmask variable. \n");
+        return;
+    }
+
+    /* Load the image file that contains the collision sprites */
+    image = IMG_Load(c_sprite_filename);
+    if(!image){
+        fprintf(stderr, "Error! Could not load collision sprite: %s\n",
+                c_sprite_filename);
+        return;
+    }
+
+    maskcolour = SDL_MapRGB(image->format, 0, 0, 0);
+
+    actor->c_field = calloc(1, ba_h *
+            sizeof(*(actor->c_field)));
+    if(!(actor->c_field)){
+        fprintf(stderr,
+                "Error! Could not allocate memory for collision bit-field\n");
+        return;
+    }
+
+    for(i=0; i < ba_h; i++){
+        for(j = 0; j < ba_w; j++){
+            if(get_pixel(image, (j + 0.5) * JTY_CTW, (i + 0.5) * JTY_CTH )
+                    == maskcolour) {
+                /**
+                 * This line produces the binary number
+                 * 00010000000 where there are j 0's before
+                 * the leading 1
+                 * */
+                actor->c_field[i] |= (jty_bf_t)1 << (JTY_BFBW - j - 1);
+#ifdef DEBUG_MODE
+                fprintf(stderr, "1");
+            }else{
+                fprintf(stderr, "0");
+            }
+        }
+        fprintf(stderr, "\n");
+    }
+#else
+            }
+        }
+    }
+#endif
+
+    return;
+}
+
+static jty_actor *jty_actor_create(int w, int h, const char *sprite_filename,
+        const char *c_sprite_filename)
 {
     jty_actor *actor;
     Uint32 colourkey;
@@ -329,15 +488,18 @@ static jty_actor *jty_actor_create(int w, int h, const char *sprite_filename)
     SDL_FreeSurface(image);
     SDL_FreeSurface(sprite);
 
+    jty_actor_load_c_fields(actor, c_sprite_filename);
+
     return actor;
 }
 
-jty_actor *jty_new_actor(int w, int h, const char *sprite_filename)
+jty_actor *jty_new_actor(int w, int h, const char *sprite_filename,
+        const char *c_sprite_filename)
 {
     jty_actor *actor;
     static unsigned int uid = 0;
 
-    actor = jty_actor_create(w, h, sprite_filename);
+    actor = jty_actor_create(w, h, sprite_filename, c_sprite_filename);
 
     actor->uid = uid;
     uid++;
@@ -431,6 +593,49 @@ void jty_actor_add_i_handler(jty_actor *actor,
     return;
 }
 
+void jty_actor_map_tile_overlap(jty_actor *a, int i, int j, jty_overlap *overlap)
+{
+    jty_calc_overlap_l(a->x - a->w / 2., a->x + a->w / 2.,
+            i * jty_engine.map->tw, (i + 1) * jty_engine.map->tw,
+            &(overlap->x));
+
+    jty_calc_overlap_l(a->y - a->h / 2., a->y + a->h / 2.,
+            j * jty_engine.map->th, (j + 1) * jty_engine.map->th,
+            &(overlap->y));
+
+    return;
+}
+
+int jty_actor_map_tile_bw_c_detect(jty_actor *a, int i, int j)
+{
+    int k;
+    jty_overlap overlap;
+
+    jty_actor_map_tile_overlap(a, i, j, &overlap);
+
+    for(k = 0; k < floor(overlap.y.overlap / JTY_CTH); k++){
+        jty_bf_t bf1 = a->c_field
+            [k + (int)floor((overlap.y.a1_offset/JTY_CTH))];
+
+        bf1 = (bf1 << ((int)(overlap.x.a1_offset/ JTY_CTW))) /* Shift the bit-field
+                                                          so the left-most 
+                                                          figure corresponds 
+                                                          to the start of the
+                                                          overlap */
+
+            & ((~0) << (JTY_BFBW
+                        - (int)(overlap.x.overlap/ JTY_CTW))); /* Trim the bitfield
+                                                              so that it as
+                                                              wide as the 
+                                                              overlap */
+
+        if(bf1){
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void jty_actor_iterate(jty_actor *actor)
 {
     actor->px = actor->x;
@@ -478,8 +683,14 @@ void jty_actor_iterate(jty_actor *actor)
             for(mhl = actor->m_h_ls; mhl != NULL; mhl = mhl->next) {
                 k = 0;
                 while((tile_type = mhl->tiles[k])) {
-                    if(tile_type == c_map[j][i])
-                        mhl->map_handler(actor, i, j, tile_type);
+                    if(tile_type == c_map[j][i]) {
+                        if(jty_actor_map_tile_bw_c_detect(
+                                    actor,
+                                    i,
+                                    j)) {
+                            mhl->map_handler(actor, i, j, tile_type);
+                        }
+                    }
                     k++;
                 }
             }

@@ -1,13 +1,23 @@
 /* The main jaunty engine, responsible for keeping track of levels, actors,
  * etc... */
 
-#ifndef JEN_H
-#define JEN_H
+#ifndef JTY_H
+#define JTY_H
 #include <GL/gl.h>
 #include "SDL.h"
 #include <SDL_image.h>
 #include <math.h>
 #include <limits.h>
+
+/* 
+ * width and height (in pixels per bit) of 
+ * engine's collision tiles
+ */
+#define JTY_CTW 5
+# define JTY_CTH 5
+
+/* Width, in bits, of the 'jty_bf_t' type */
+#define JTY_BFBW (CHAR_BIT * sizeof(jty_bf_t))
 
 #define DEBUG_MODE
 
@@ -35,6 +45,28 @@ typedef struct jty_map_handle_ls jty_map_handle_ls;
 
 typedef void (*jty_i_handler)(struct jty_actor *actor);
 typedef void (*jty_m_handler)(jty_actor *actor, int i, int j, char tile_type);
+
+typedef struct jty_overlap_l jty_overlap_l;
+typedef struct jty_overlap jty_overlap;
+
+/* 
+ * Type that is used to store the bit-fields
+ *
+ */
+typedef unsigned long jty_bf_t;
+
+struct jty_overlap_l{ /* Struct for describing a linear overlap */
+    double a1_offset;    /* Offset of object 1 from the start of the overlap */
+    double a2_offset;    /* Offset of object 2 from the start of the overlap */
+    double overlap;      /* Size of the overlap */
+};
+
+struct jty_overlap{  /* Struct for describing an overlaps */
+    struct jty_overlap_l x; /* Linear overlap in x-direction */
+    struct jty_overlap_l y; /* Linear overlap in y-direction */
+};
+
+
 
 struct jty_map{
 
@@ -69,6 +101,8 @@ struct jty_actor{       /* A character in the game */
 
     GLuint texture; /* Texture that is this actor's
                                      sprite */
+
+    jty_bf_t *c_field; /* Collision bitfields of actor */
 
     jty_actor_i_ls *i_ls;      /*  List of actor's iteration handlers */
 
@@ -109,7 +143,6 @@ struct jty_eng{
     jty_actor_ls *actors; /* List of actors that are in the engine */
 
     SDL_Surface *screen; /* Main game window surface */
-
 };
 
 /* Global variable containing information about the engine */
@@ -134,8 +167,11 @@ jty_map *jty_new_map(
 /* Creates a new actor, in 'map',
  * inside the group(s) satisfying the group number
  * 'groupnum'. Actor has width 'w', height 'h' and the image
- * file 'sprite_filename' contains the sprites to be used for this actor. */
-jty_actor *jty_new_actor(int w, int h, const char *sprite_filename);
+ * file 'sprite_filename' contains the sprites to be used for this actor,
+ * 'c_sprite_filename' contains the sprites that are used to form
+ * the collision bitfields for this actor. */
+jty_actor *jty_new_actor(int w, int h, const char *sprite_filename,
+        const char *c_sprite_filename);
 
 /* Add a handler that will get called once each logic frame for the actor */
 void jty_actor_add_i_handler(jty_actor *actor,
