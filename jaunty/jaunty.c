@@ -137,8 +137,6 @@ static void initialise_video(unsigned int win_w,
     return;
 }
 
-
-
 jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h)
 {
     initialise_video(win_w, win_h);
@@ -323,34 +321,29 @@ jty_actor_ls *jty_actor_ls_add(jty_actor_ls *ls, jty_actor *actor)
     return ls;
 }
 
-/* Actor functions */
+/* Sprite functions */
 
-void jty_actor_free(jty_actor *actor)
+void jty_sprite_free(jty_sprite *sprite)
 {
-#ifdef DEBUG_MODE
-    fprintf(stderr, "Deleting actor uid: %d\n", actor->uid);
-#endif
+    /* Delete the textures */
+    glDeleteTextures(sprite->num_of_frames, sprite->textures);
+    free(sprite->textures);
 
-    /* Delete the texture */
-    if(glIsTexture(actor->texture))
-        glDeleteTextures(1, &(actor->texture));
+    free(sprite->c_fields);
 
-    free(actor->c_field);
-
-    free(actor);
     return;
 }
 
-
-void jty_actor_load_c_fields(jty_actor *actor,const char *c_sprite_filename)
+void jty_sprite_load_c_fields(jty_sprite *sprite,const char *c_sprite_filename)
 {
     SDL_Surface *image;
     /* Height of the bitmask array */
-    int ba_h = ceil(actor->h / JTY_CTH);
+    int ba_h = ceil(sprite->h / JTY_CTH);
     /* Width of the bitmask */
-    int ba_w = ceil(actor->w / JTY_CTW);
+    int ba_w = ceil(sprite->w / JTY_CTW);
+    int i, j, k;
 
-    int i, j;
+    sprite->ba_h = ba_h; 
 
     Uint32 maskcolour;
 
@@ -370,49 +363,163 @@ void jty_actor_load_c_fields(jty_actor *actor,const char *c_sprite_filename)
 
     maskcolour = SDL_MapRGB(image->format, 0, 0, 0);
 
-    actor->c_field = calloc(1, ba_h *
-            sizeof(*(actor->c_field)));
-    if(!(actor->c_field)){
+    sprite->c_fields = calloc(1,
+            ba_h * sizeof(*(sprite->c_fields))
+            * sprite->num_of_frames);
+
+    if(!(sprite->c_fields)){
         fprintf(stderr,
                 "Error! Could not allocate memory for collision bit-field\n");
         return;
     }
 
-    for(i=0; i < ba_h; i++){
-        for(j = 0; j < ba_w; j++){
-            if(get_pixel(image, (j + 0.5) * JTY_CTW, (i + 0.5) * JTY_CTH )
-                    == maskcolour) {
-                /**
-                 * This line produces the binary number
-                 * 00010000000 where there are j 0's before
-                 * the leading 1
-                 * */
-                actor->c_field[i] |= (jty_bf_t)1 << (JTY_BFBW - j - 1);
+    for(k= 0; k < sprite->num_of_frames; k++){
+        for(i=0; i < ba_h; i++){
+            for(j = 0; j < ba_w; j++){
+                if(get_pixel(image,
+                            (j + 0.5 + k * sprite->w) * JTY_CTW,
+                            (i + 0.5) * JTY_CTH )
+                        == maskcolour) {
+                    /**
+                     * This line produces the binary number
+                     * 00010000000 where there are j 0's before
+                     * the leading 1
+                     */
+                    sprite->c_fields[i + k * ba_h] |= (jty_bf_t)1 << (JTY_BFBW - j - 1);
 #ifdef DEBUG_MODE
-                fprintf(stderr, "1");
-            }else{
-                fprintf(stderr, "0");
+                    fprintf(stderr, "1");
+                }else{
+                    fprintf(stderr, "0");
+                }
             }
+            fprintf(stderr, "\n");
         }
-        fprintf(stderr, "\n");
-    }
 #else
+                }
             }
         }
-    }
 #endif
+    }
 
     return;
 }
 
-static jty_actor *jty_actor_create(int w, int h, const char *sprite_filename,
-        const char *c_sprite_filename)
+jty_sprite *jty_sprite_create(
+        int w, int h, const char *sprite_filename, const char *c_sprite_filename
+        )
+{
+    jty_sprite *sprite;
+    Uint32 colourkey;
+    int max_size, xpad, ypad;
+    SDL_Surface *sprite_img, *image;
+    SDL_Rect dst, src;
+    int i;
+
+    if((sprite = malloc(sizeof(*sprite))) == NULL){
+        fprintf(stderr, "Error allocating memory for sprite.\n");
+        exit(1);
+    }
+
+    sprite->w = w;
+    sprite->h = h;
+
+    sprite->p2w = mkp2(w);
+    sprite->p2h = mkp2(h);
+
+    /* Check sprite size doesn't exceed openGL's maximum texture size */
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_size);
+
+    if(sprite->p2w > max_size || sprite->p2h > max_size){
+        fprintf(stderr, "Image size (%d, %d) exceeds "
+                "maximum texture size (%d)\n",
+                sprite->p2w, sprite->p2h, max_size);
+        return NULL;
+    }
+
+    /* Load the image file that will contain the sprite */
+    image = IMG_Load(sprite_filename);
+
+    if(!image){
+        fprintf(stderr, "Error! Could not load %s\n", sprite_filename);
+        return NULL;
+    }
+
+    sprite->num_of_frames = image->w / w;
+
+    /* Make SDL copy the alpha channel of the image */
+    SDL_SetAlpha(image, 0, SDL_ALPHA_OPAQUE);
+    colourkey = SDL_MapRGBA(image->format, 0xff, 0x00, 0xff, 0);
+
+    xpad = (sprite->p2w - sprite->w)/2;
+    ypad = (sprite->p2h - sprite->h)/2;
+
+    sprite_img = SDL_CreateRGBSurface(SDL_SWSURFACE, sprite->p2w,
+            sprite->p2h, 32, RMASK, GMASK, BMASK, AMASK);
+    if(!sprite_img){
+        fprintf(stderr, "Error creating a surface for the sprites\n");
+        jty_sprite_free(sprite);
+        return NULL;
+    }
+
+    sprite->textures = malloc(sprite->num_of_frames * sizeof(*sprite->textures));
+    glGenTextures(sprite->num_of_frames, sprite->textures);
+
+    for(i=0; i < sprite->num_of_frames; i++) {
+        dst.x = xpad;
+        dst.y = ypad;
+        dst.w = sprite->w;
+        dst.h = sprite->h;
+        src.w = sprite->w;
+        src.h = sprite->h;
+        src.x = i * sprite->w;
+        src.y = 0;
+
+        SDL_FillRect(sprite_img, NULL, colourkey);
+        SDL_SetColorKey(image, SDL_SRCCOLORKEY, colourkey);
+        SDL_BlitSurface(image, &src, sprite_img, &dst);
+
+        /* Create an openGL texture and bind the sprite's image to it */
+        glBindTexture(GL_TEXTURE_2D, sprite->textures[i]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, sprite->p2w, sprite->p2h,
+                0, GL_RGBA, GL_UNSIGNED_BYTE, sprite_img->pixels);
+    }
+
+    SDL_FreeSurface(image);
+    SDL_FreeSurface(sprite_img);
+
+    jty_sprite_load_c_fields(sprite, c_sprite_filename);
+    
+    return sprite;
+}
+
+/* Actor functions */
+
+void jty_actor_free(jty_actor *actor)
+{
+    int i;
+
+#ifdef DEBUG_MODE
+    fprintf(stderr, "Deleting actor uid: %d\n", actor->uid);
+#endif
+
+    for(i = 0; i < actor->num_of_sprites; i++) {
+        jty_sprite_free(actor->sprites[i]);
+    }
+
+    free(actor->sprites);
+
+    /* TODO: free iteration and map handlers */
+
+    free(actor);
+    return;
+}
+
+static jty_actor *jty_actor_create()
 {
     jty_actor *actor;
-    Uint32 colourkey;
-    int max_size, xpad, ypad; 
-    SDL_Surface *sprite, *image;
-    SDL_Rect dst, src;
 
     if((actor = malloc(sizeof(*actor))) == NULL){
         fprintf(stderr, "Error allocating memory for actor.\n");
@@ -422,86 +529,44 @@ static jty_actor *jty_actor_create(int w, int h, const char *sprite_filename,
     actor->x = actor->y = actor->px = actor->py = 0;
     actor->vx = actor->vy = actor->ax = actor->ay = 0;
 
-    actor->w = w;
-    actor->h = h;
-
-    actor->p2w = mkp2(w);
-    actor->p2h = mkp2(h);
+    actor->current_sprite = 0;
+    actor->current_frame = 0;
 
     actor->i_ls = NULL;
     actor->m_h_ls = NULL;
 
-    /* Check sprite size doesn't exceed openGL's maximum texture size */
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_size);
-
-    if(actor->p2w > max_size || actor->p2h > max_size){
-        fprintf(stderr, "Image size (%d, %d) exceeds "
-                "maximum texture size (%d)\n",
-                actor->p2w, actor->p2h, max_size);
-        return NULL;
-    }
-
-    /* Load the image file that will contain the sprite */
-    image = IMG_Load(sprite_filename);
-    if(!image){
-        fprintf(stderr, "Error! Could not load %s\n", sprite_filename);
-        return NULL;
-    }
-
-    /* Make SDL copy the alpha channel of the image */
-    SDL_SetAlpha(image, 0, SDL_ALPHA_OPAQUE);
-    colourkey = SDL_MapRGBA(image->format, 0xff, 0x00, 0xff, 0);
-
-    xpad = (actor->p2w - actor->w)/2;
-    ypad = (actor->p2h - actor->h)/2;
-
-    sprite = SDL_CreateRGBSurface(SDL_SWSURFACE, actor->p2w,
-            actor->p2h, 32, RMASK, GMASK, BMASK, AMASK);
-    if(!sprite){
-        fprintf(stderr, "Error creating a surface for the sprites\n");
-        jty_actor_free(actor);
-        return NULL;
-    }
-
-    dst.x = xpad;
-    dst.y = ypad;
-    dst.w = actor->w;
-    dst.h = actor->h;
-    src.w = actor->w;
-    src.h = actor->h;
-    src.x = 0;
-    src.y = 0;
-
-    SDL_FillRect(sprite, NULL, colourkey);
-    SDL_SetColorKey(image, SDL_SRCCOLORKEY, colourkey);
-    SDL_BlitSurface(image, &src, sprite, &dst);
-
-    /* Create an openGL texture and bind the sprite's image to it */
-    glGenTextures(1, &(actor->texture));
-    glBindTexture(GL_TEXTURE_2D, actor->texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, actor->p2w, actor->p2h,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, sprite->pixels);
-
-    SDL_FreeSurface(image);
-    SDL_FreeSurface(sprite);
-
-    jty_actor_load_c_fields(actor, c_sprite_filename);
-
     return actor;
 }
 
-jty_actor *jty_new_actor(int w, int h, const char *sprite_filename,
-        const char *c_sprite_filename)
+jty_actor *jty_new_actor(
+        int num_of_sprites,
+        int w, int h, const char *sprite_filename, const char *c_sprite_filename,
+        ...
+        )
 {
     jty_actor *actor;
+    jty_sprite **sprites;
     static unsigned int uid = 0;
+    va_list parg;
+    int i;
 
-    actor = jty_actor_create(w, h, sprite_filename, c_sprite_filename);
+    sprites = malloc(sizeof(*sprites) * num_of_sprites);
+    sprites[0] = jty_sprite_create(w, h, sprite_filename, c_sprite_filename);
+    
+    va_start(parg, c_sprite_filename);
+    for(i=1; i<=num_of_sprites; i++){
+        w = va_arg(parg, int);
+        h = va_arg(parg, int);
+        sprite_filename = va_arg(parg, char *);
+        c_sprite_filename = va_arg(parg, char *);
 
+        sprites[i] = jty_sprite_create(w, h, sprite_filename, c_sprite_filename);
+    }
+
+    actor = jty_actor_create();
+    actor->sprites = sprites;
     actor->uid = uid;
+    actor->num_of_sprites = num_of_sprites;
     uid++;
 
 #ifdef DEBUG_MODE
@@ -530,6 +595,7 @@ static int jty_actor_paint(jty_actor *actor)
     double frame = jty_engine.elapsed_frames;
     double fframe = frame - floor(frame);  /* fframe holds what fraction we
                                               through the current frame */
+    jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
 
     /* Calculating the point where the actor should be drawn */
     actor->gx = fframe * actor->x + (1 - fframe) * actor->px;
@@ -549,23 +615,23 @@ static int jty_actor_paint(jty_actor *actor)
     /* translating the actor's matrix to the point where the 
      * the actor should be drawn */
     glTranslatef(actor->gx, actor->gy, 0);
-    glBindTexture(GL_TEXTURE_2D, actor->texture);
+    glBindTexture(GL_TEXTURE_2D,
+            curr_sprite->textures[actor->current_frame]);
 
     glBegin(GL_QUADS);
     glColor3f(1.0f, 1.0f, 1.0f);
 
     glTexCoord2d(0, 0);
-    glVertex2i(-actor->p2w/2, -actor->p2h/2);
+    glVertex2i(-curr_sprite->p2w/2, -curr_sprite->p2h/2);
 
     glTexCoord2d(0, 1);
-    glVertex2i(-actor->p2w/2, actor->p2h/2);
+    glVertex2i(-curr_sprite->p2w/2, curr_sprite->p2h/2);
 
     glTexCoord2d(1, 1);
-    glVertex2i(actor->p2w/2, actor->p2h/2);
+    glVertex2i(curr_sprite->p2w/2, curr_sprite->p2h/2);
 
     glTexCoord2d(1, 0);
-    glVertex2i(actor->p2w/2, -actor->p2h/2);
-
+    glVertex2i(curr_sprite->p2w/2, -curr_sprite->p2h/2);
 
     glEnd();
 
@@ -595,11 +661,13 @@ void jty_actor_add_i_handler(jty_actor *actor,
 
 void jty_actor_map_tile_overlap(jty_actor *a, int i, int j, jty_overlap *overlap)
 {
-    jty_calc_overlap_l(a->x - a->w / 2., a->x + a->w / 2.,
+    jty_sprite *curr_sprite = a->sprites[a->current_sprite];
+
+    jty_calc_overlap_l(a->x - curr_sprite->w / 2., a->x + curr_sprite->w / 2.,
             i * jty_engine.map->tw, (i + 1) * jty_engine.map->tw,
             &(overlap->x));
 
-    jty_calc_overlap_l(a->y - a->h / 2., a->y + a->h / 2.,
+    jty_calc_overlap_l(a->y - curr_sprite->h / 2., a->y + curr_sprite->h / 2.,
             j * jty_engine.map->th, (j + 1) * jty_engine.map->th,
             &(overlap->y));
 
@@ -610,12 +678,12 @@ int jty_actor_map_tile_bw_c_detect(jty_actor *a, int i, int j)
 {
     int k;
     jty_overlap overlap;
+    jty_sprite *curr_sprite = a->sprites[a->current_sprite];
 
     jty_actor_map_tile_overlap(a, i, j, &overlap);
 
-    for(k = 0; k < floor(overlap.y.overlap / JTY_CTH); k++){
-        jty_bf_t bf1 = a->c_field
-            [k + (int)floor((overlap.y.a1_offset/JTY_CTH))];
+    for(k = 0; k < curr_sprite->ba_h; k++){
+        jty_bf_t bf1 = curr_sprite->c_fields[a->current_frame * curr_sprite->ba_h + k];
 
         bf1 = (bf1 << ((int)(overlap.x.a1_offset/ JTY_CTW))) /* Shift the bit-field
                                                           so the left-most 
@@ -663,11 +731,12 @@ void jty_actor_iterate(jty_actor *actor)
     char tile_type;
     unsigned char (*c_map)[jty_engine.map->w] =
         (void *)jty_engine.map->c_map;
+    jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
 
-    i_min = (actor->x - actor->w / 2.) / jty_engine.map->tw;
-    i_max = (actor->x + actor->w / 2.) / jty_engine.map->tw;
-    j_min = (actor->y - actor->h / 2.) / jty_engine.map->th;
-    j_max = (actor->y + actor->h / 2.) / jty_engine.map->th;
+    i_min = (actor->x - curr_sprite->w / 2.) / jty_engine.map->tw;
+    i_max = (actor->x + curr_sprite->w / 2.) / jty_engine.map->tw;
+    j_min = (actor->y - curr_sprite->h / 2.) / jty_engine.map->th;
+    j_max = (actor->y + curr_sprite->h / 2.) / jty_engine.map->th;
 
 #ifdef DEBUG_MODE
     if (jty_engine.print_messages) {

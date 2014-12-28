@@ -6,12 +6,35 @@
 
 #define DEBUG_MODE
 
+int dog_sprites[] = {
+    /* top left */ 0,
+    /* top centre */ 0,
+    /* top right */ 1,
+    /* center left */ 0,
+    /* center center */ 0,
+    /* center right */ 1,
+    /* bottom left */ 0,
+    /* bottom centre */ 0,
+    /* bottom right */ 1, 
+
+    /* stationary sprites */
+    /* top left */ 2,
+    /* top centre */ 2,
+    /* top right */ 3,
+    /* center left */ 2,
+    /* center center */ 2,
+    /* center right */ 3,
+    /* bottom left */ 2,
+    /* bottom centre */ 2,
+    /* bottom right */ 3 
+};
+
 void test_m_handler(jty_actor *a, int i, int j, char tile_type)
 {
     fprintf(stderr, "colliding with something\n");
     return;
-
 }
+
 
 void input_handler(struct jty_actor *actor)
 {
@@ -20,36 +43,55 @@ void input_handler(struct jty_actor *actor)
     if(SDL_PeepEvents(&selection, 1,
                 SDL_GETEVENT, SDL_EVENTMASK(SDL_KEYDOWN) |
                               SDL_EVENTMASK(SDL_KEYUP))){
+        int old_index = actor->vx + 1  + 3 * (actor->vy + 1);
+
         switch(selection.key.keysym.sym){
             case SDLK_UP:
                 if(selection.key.type == SDL_KEYDOWN)
-                    actor->vy = -0.5;
+                    actor->vy = -1;
                 else
                     actor->vy = 0;
                 break;
             case SDLK_DOWN:
                 if(selection.key.type == SDL_KEYDOWN)
-                    actor->vy = 0.5;
+                    actor->vy = 1;
                 else
                     actor->vy = 0;
                 break;
             case SDLK_LEFT:
                 if(selection.key.type == SDL_KEYDOWN)
-                    actor->vx = -0.5;
+                    actor->vx = -1;
                 else
                     actor->vx = 0;
                 break;
             case SDLK_RIGHT:
-                if(selection.key.type == SDL_KEYDOWN)
-                    actor->vx = 0.5;
-                else
+                if(selection.key.type == SDL_KEYDOWN) {
+                    actor->vx = 1;
+                }   else
                     actor->vx = 0;
                 break;
             default:
                 break;
-
         }
+
+        int index = actor->vx + 1 + 3 * (actor->vy + 1);
+
+        /* if actor currently stationary... */
+        if(index == 4) {
+            index = 9 + old_index;
+        }
+
+        actor->current_sprite = dog_sprites[index];
     }
+}
+
+void animation_handler(struct jty_actor *actor) 
+{
+    int animation_framerate = 8; /* frames per second */
+    jty_sprite *sprite = actor->sprites[actor->current_sprite];
+    int animation_frames_passed = jty_engine.elapsed_frames / FPS * animation_framerate;
+    actor->current_frame = animation_frames_passed % sprite->num_of_frames;
+    return;
 }
 
 int main(void)
@@ -112,14 +154,20 @@ int main(void)
         return -1;
     }
 
-    actor = jty_new_actor(104, 68, "images/sprites/dog/0.png", 
-            "images/c_sprites/dog/0.png");
+    actor = jty_new_actor(
+            4,
+            104, 68, "images/sprites/dog/left_walking.png", "images/c_sprites/dog/left_walking.png",
+            104, 68, "images/sprites/dog/right_walking.png", "images/c_sprites/dog/right_walking.png",
+            104, 68, "images/sprites/dog/left_still.png", "images/c_sprites/dog/left_still.png",
+            104, 68, "images/sprites/dog/right_still.png", "images/c_sprites/dog/right_still.png"
+            );
 
     actor->x = actor->px = 400;
     actor->y = actor->py = 300;
     actor->vx = 0.0;
 
     jty_actor_add_i_handler(actor, input_handler);
+    jty_actor_add_i_handler(actor, animation_handler);
     jty_actor_add_m_handler(actor, test_m_handler, "b");
 
     start_t = SDL_GetTicks();
@@ -138,8 +186,8 @@ int main(void)
         /* See whether it is time for a logic frame */
         curr_t = SDL_GetTicks();
         jty_engine.elapsed_frames = ((double)(curr_t \
-                    - start_t) / 1000. * FPS) - c_frame; 
-        ef = (int)jty_engine.elapsed_frames;
+                    - start_t) / 1000. * FPS); 
+        ef = (int)(jty_engine.elapsed_frames - c_frame);
 
         /* Work through all the logic frames */
         while(ef--){

@@ -8,6 +8,7 @@
 #include <SDL_image.h>
 #include <math.h>
 #include <limits.h>
+#include <stdarg.h>
 
 /* 
  * width and height (in pixels per bit) of 
@@ -37,6 +38,7 @@
 
 typedef struct jty_eng jty_eng;
 typedef struct jty_map jty_map;
+typedef struct jty_sprite jty_sprite;
 typedef struct jty_actor jty_actor;
 typedef struct jty_actor_ls jty_actor_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
@@ -75,7 +77,6 @@ struct jty_map{
 
     char *c_map; /* Array of collision tile types */
 
-
     SDL_Rect map_rect; /* SDL_Rect describing the position, width
                           and height of map that is visible */
 
@@ -83,6 +84,19 @@ struct jty_map{
 
     GLuint texname;    /* Texture containing the map */
 
+};
+
+struct jty_sprite{
+    int w, h;                   /* Width and height of sprite */
+    int p2w, p2h;               /* Width and height of sprite to nearest power
+                                   of two (as required by openGL) */
+
+    int num_of_frames;          /* Number of frames sprite has */
+    GLuint *textures;           /* Pointer to texture sprites of this
+                                   actor */
+
+    jty_bf_t *c_fields;         /* Collision bitfields of sprite */
+    int ba_h;                   /* Height of these bitfield arrays */
 };
 
 struct jty_actor{       /* A character in the game */
@@ -95,14 +109,10 @@ struct jty_actor{       /* A character in the game */
     double vx, vy;              /* x and y components of velocity */
     double ax, ay;              /* x and y components of acceleration */
                                    
-    int w, h;                   /* Width and height of actor */
-    int p2w, p2h;               /* Width and height of actor to nearest power
-                                   of two (as required by openGL) */
-
-    GLuint texture; /* Texture that is this actor's
-                                     sprite */
-
-    jty_bf_t *c_field; /* Collision bitfields of actor */
+    jty_sprite **sprites;       /* Sprites of this actor */
+    int num_of_sprites;         /* Number of sprites this actor has */
+    int current_sprite;         /* Current sprite that is being displayed */
+    int current_frame;          /* Current frame that is being displayed */
 
     jty_actor_i_ls *i_ls;      /*  List of actor's iteration handlers */
 
@@ -164,14 +174,17 @@ jty_map *jty_new_map(
         const char *filename, const char *k, const char *m,
         const char *cm);
 
-/* Creates a new actor, in 'map',
- * inside the group(s) satisfying the group number
- * 'groupnum'. Actor has width 'w', height 'h' and the image
- * file 'sprite_filename' contains the sprites to be used for this actor,
- * 'c_sprite_filename' contains the sprites that are used to form
- * the collision bitfields for this actor. */
-jty_actor *jty_new_actor(int w, int h, const char *sprite_filename,
-        const char *c_sprite_filename);
+/* Creates a new actor, consisting of 'num_of_sprites' sprites. The 
+ * details of these
+ * sprites are given by the succession of 'w', 'h', 'sprite_filename',
+ * 'c_sprite_filename' arguments, giving the width, height, sprite 
+ * filename and collilsion sprite filename of the individual sprites.
+ */
+jty_actor *jty_new_actor(
+        int num_of_sprites,
+        int w, int h, const char *sprite_filename, const char *c_sprite_filename,
+        ...
+        );
 
 /* Add a handler that will get called once each logic frame for the actor */
 void jty_actor_add_i_handler(jty_actor *actor,
