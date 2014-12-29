@@ -8,25 +8,25 @@
 
 int dog_sprites[] = {
     /* top left */ 0,
-    /* top centre */ 0,
-    /* top right */ 1,
+    /* top centre */ 1,
+    /* top right */ 2,
     /* center left */ 0,
-    /* center center */ 0,
-    /* center right */ 1,
+    /* center center */ 1,
+    /* center right */ 2,
     /* bottom left */ 0,
-    /* bottom centre */ 0,
-    /* bottom right */ 1, 
+    /* bottom centre */ 3,
+    /* bottom right */ 2, 
 
     /* stationary sprites */
-    /* top left */ 2,
-    /* top centre */ 2,
-    /* top right */ 3,
-    /* center left */ 2,
-    /* center center */ 2,
-    /* center right */ 3,
-    /* bottom left */ 2,
-    /* bottom centre */ 2,
-    /* bottom right */ 3 
+    /* top left */ 4,
+    /* top centre */ 5,
+    /* top right */ 6,
+    /* center left */ 4,
+    /* center center */ 5,
+    /* center right */ 6,
+    /* bottom left */ 4,
+    /* bottom centre */ 7,
+    /* bottom right */ 6 
 };
 
 void test_m_handler(jty_actor *a, int i, int j, char tile_type)
@@ -155,11 +155,15 @@ int main(void)
     }
 
     actor = jty_new_actor(
-            4,
+            8,
             104, 68, "images/sprites/dog/left_walking.png", "images/c_sprites/dog/left_walking.png",
+            68, 104, "images/sprites/dog/up_walking.png", "images/c_sprites/dog/up_walking.png",
             104, 68, "images/sprites/dog/right_walking.png", "images/c_sprites/dog/right_walking.png",
+            68, 104, "images/sprites/dog/down_walking.png", "images/c_sprites/dog/down_walking.png",
             104, 68, "images/sprites/dog/left_still.png", "images/c_sprites/dog/left_still.png",
-            104, 68, "images/sprites/dog/right_still.png", "images/c_sprites/dog/right_still.png"
+            68, 104, "images/sprites/dog/up_still.png", "images/c_sprites/dog/up_still.png",
+            104, 68, "images/sprites/dog/right_still.png", "images/c_sprites/dog/right_still.png",
+            68, 104, "images/sprites/dog/down_still.png", "images/c_sprites/dog/down_still.png"
             );
 
     actor->x = actor->px = 400;
