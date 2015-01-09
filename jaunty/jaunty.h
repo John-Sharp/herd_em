@@ -44,9 +44,11 @@ typedef struct jty_actor_ls jty_actor_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_map_handle_ls jty_map_handle_ls;
+typedef struct jty_actor_handle_ls jty_actor_handle_ls;
 
 typedef void (*jty_i_handler)(struct jty_actor *actor);
 typedef void (*jty_m_handler)(jty_actor *actor, int i, int j, char tile_type);
+typedef void (*jty_a_handler)(jty_actor *actor1, jty_actor *actor2);
 
 typedef struct jty_overlap_l jty_overlap_l;
 typedef struct jty_overlap jty_overlap;
@@ -90,6 +92,7 @@ struct jty_sprite{
     int w, h;                   /* Width and height of sprite */
     int p2w, p2h;               /* Width and height of sprite to nearest power
                                    of two (as required by openGL) */
+    int r;                      /* Radius of sprite (used for collision detection */
 
     int num_of_frames;          /* Number of frames sprite has */
     GLuint *textures;           /* Pointer to texture sprites of this
@@ -101,6 +104,8 @@ struct jty_sprite{
 
 struct jty_actor{       /* A character in the game */
     unsigned int uid;           /* Unique identifier for actor */
+    unsigned int groupnum;      /* Group number of the actor */
+
     GLfloat x, y;               /* x, y coordinates of actor */
     GLfloat px, py;             /* x, y coordinates from previous frame */
     GLfloat gx, gy;             /* x, y coordinates of actor's interpolated
@@ -117,6 +122,7 @@ struct jty_actor{       /* A character in the game */
     jty_actor_i_ls *i_ls;      /*  List of actor's iteration handlers */
 
     jty_map_handle_ls *m_h_ls; /* List of map collision handlers */
+    jty_actor_handle_ls *a_h_ls; /* List of actor collision handlers */
 };
 
 struct jty_actor_ls{         /* List of actors */
@@ -138,6 +144,14 @@ struct jty_map_handle_ls{ /* A list of map collision handlers */
                 /* Pointer to the 
                    collision handler
                    function */
+};
+
+struct jty_actor_handle_ls{
+    jty_actor_handle_ls *next;
+    unsigned int groupnum;      /* Group of actors that will fire when actor
+                                   this list belongs to collides with */
+    jty_a_handler actor_handler; /* Pointer to the actor collision handler
+                                    function */
 };
 
 struct jty_eng{
@@ -181,6 +195,7 @@ jty_map *jty_new_map(
  * filename and collilsion sprite filename of the individual sprites.
  */
 jty_actor *jty_new_actor(
+        unsigned int groupnum,
         int num_of_sprites,
         int w, int h, const char *sprite_filename, const char *c_sprite_filename,
         ...
@@ -190,7 +205,7 @@ jty_actor *jty_new_actor(
 void jty_actor_add_i_handler(jty_actor *actor,
                              void (*i_handler)(struct jty_actor *));
 
-/* Add a handler that will get caled each time 'actor' hits a tile in 'tiles'.
+/* Add a handler that will get called each time 'actor' hits a tile in 'tiles'.
  * The tiles are given as a string in the same way as the map gets specified,
  * and the same key as was is used in the actor's primary map. */
 void jty_actor_add_m_handler(jty_actor *actor,
@@ -200,6 +215,18 @@ void jty_actor_add_m_handler(jty_actor *actor,
 /* Removes the map handler */
 void jty_actor_rm_m_handler(jty_actor *actor,
                             jty_m_handler map_handler);
+
+/* Add a handler that will get called each time an actor in a group bitwise AND
+ * matching with 'groupnum1' collides with an actor in a group bitwises AND matching
+ * with 'groupnum2' */
+void jty_eng_add_a_a_handler(unsigned int groupnum1,
+        unsigned int groupnum2,
+        jty_a_handler actor_handler);
+
+/* Removes the actor-actor handler */
+void jty_eng_rm_a_a_handler(unsigned int groupnum1,
+        unsigned int groupnum2,
+        jty_a_handler actor_handler);
 
 /* Frees all resources allocated to the engine */
 void jty_eng_free(void);

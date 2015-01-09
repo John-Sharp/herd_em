@@ -350,7 +350,7 @@ void jty_sprite_load_c_fields(jty_sprite *sprite,const char *c_sprite_filename)
     if(ba_w > JTY_BFBW){
         fprintf(stderr, "Error! Collision tilemap is too wide "
                 "for bitmask variable. \n");
-        return;
+        exit(1);
     }
 
     /* Load the image file that contains the collision sprites */
@@ -358,7 +358,7 @@ void jty_sprite_load_c_fields(jty_sprite *sprite,const char *c_sprite_filename)
     if(!image){
         fprintf(stderr, "Error! Could not load collision sprite: %s\n",
                 c_sprite_filename);
-        return;
+        exit(1);
     }
 
     maskcolour = SDL_MapRGB(image->format, 0, 0, 0);
@@ -370,7 +370,7 @@ void jty_sprite_load_c_fields(jty_sprite *sprite,const char *c_sprite_filename)
     if(!(sprite->c_fields)){
         fprintf(stderr,
                 "Error! Could not allocate memory for collision bit-field\n");
-        return;
+        exit(1);
     }
 
     for(k= 0; k < sprite->num_of_frames; k++){
@@ -423,6 +423,11 @@ jty_sprite *jty_sprite_create(
     sprite->w = w;
     sprite->h = h;
 
+    if(w > h)
+        sprite->r = w;
+    else
+        sprite->r = h;
+
     sprite->p2w = mkp2(w);
     sprite->p2h = mkp2(h);
 
@@ -430,9 +435,9 @@ jty_sprite *jty_sprite_create(
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_size);
 
     if(sprite->p2w > max_size || sprite->p2h > max_size){
-        fprintf(stderr, "Image size (%d, %d) exceeds "
+        fprintf(stderr, "Image size of sprite %s, (%d, %d) exceeds "
                 "maximum texture size (%d)\n",
-                sprite->p2w, sprite->p2h, max_size);
+                "plcholder", sprite->p2w, sprite->p2h, max_size);
         return NULL;
     }
 
@@ -534,11 +539,13 @@ static jty_actor *jty_actor_create()
 
     actor->i_ls = NULL;
     actor->m_h_ls = NULL;
+    actor->a_h_ls = NULL;
 
     return actor;
 }
 
 jty_actor *jty_new_actor(
+        unsigned int groupnum,
         int num_of_sprites,
         int w, int h, const char *sprite_filename, const char *c_sprite_filename,
         ...
@@ -554,7 +561,7 @@ jty_actor *jty_new_actor(
     sprites[0] = jty_sprite_create(w, h, sprite_filename, c_sprite_filename);
     
     va_start(parg, c_sprite_filename);
-    for(i=1; i<=num_of_sprites; i++){
+    for(i=1; i< num_of_sprites; i++){
         w = va_arg(parg, int);
         h = va_arg(parg, int);
         sprite_filename = va_arg(parg, char *);
@@ -564,6 +571,7 @@ jty_actor *jty_new_actor(
     }
 
     actor = jty_actor_create();
+    actor->groupnum = groupnum;
     actor->sprites = sprites;
     actor->uid = uid;
     actor->num_of_sprites = num_of_sprites;
@@ -682,7 +690,7 @@ int jty_actor_map_tile_bw_c_detect(jty_actor *a, int i, int j)
 
     jty_actor_map_tile_overlap(a, i, j, &overlap);
 
-    for(k = 0; k < curr_sprite->ba_h; k++){
+    for(k = 0; k < floor(overlap.y.overlap / JTY_CTH); k++){
         jty_bf_t bf1 = curr_sprite->c_fields[a->current_frame * curr_sprite->ba_h + k];
 
         bf1 = (bf1 << ((int)(overlap.x.a1_offset/ JTY_CTW))) /* Shift the bit-field
@@ -748,7 +756,7 @@ void jty_actor_iterate(jty_actor *actor)
 
     /* Iterate through the map-handlers */
     for(j = j_min; j <= j_max; j++)
-        for(i = i_min; i <= i_max; i++)
+        for(i = i_min; i <= i_max; i++){
             for(mhl = actor->m_h_ls; mhl != NULL; mhl = mhl->next) {
                 k = 0;
                 while((tile_type = mhl->tiles[k])) {
@@ -763,6 +771,7 @@ void jty_actor_iterate(jty_actor *actor)
                     k++;
                 }
             }
+        }
 
     return;
 }
@@ -845,6 +854,56 @@ void jty_actor_rm_m_handler(jty_actor *actor,
     return;
 }
 
+jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
+        unsigned int groupnum,
+        jty_a_handler actor_handler)
+{
+    jty_actor_handle_ls *hp;
+
+    hp = malloc(sizeof(*hp));
+
+    if(hp==NULL){
+        fprintf(stderr, "Unable to allocate memory for an "
+                "actor handler list node.\n");
+        exit(1);
+    }
+
+    hp->groupnum = groupnum;
+    hp->actor_handler = actor_handler;
+    hp->next = actor->a_h_ls;
+
+    return hp;
+}
+
+void jty_actor_add_a_handler(jty_actor *actor,
+        unsigned int groupnum,
+        jty_a_handler actor_handler)
+{
+    actor->a_h_ls = jty_actor_add_a_handler_int(actor,
+            groupnum,
+            actor_handler);
+}
+
+void jty_eng_add_a_a_handler(unsigned int groupnum1,
+        unsigned int groupnum2,
+        jty_a_handler actor_handler)
+{
+    jty_actor_ls *p_actor_ls;
+    jty_actor *actor;
+
+    for(p_actor_ls = jty_engine.actors; p_actor_ls != NULL; p_actor_ls = p_actor_ls->next) {
+        actor = p_actor_ls->actor;
+        if(actor->groupnum & groupnum1) {
+            if(actor->groupnum & groupnum2) {
+                groupnum2 |= groupnum1;
+            }
+            jty_actor_add_a_handler(actor, groupnum2, actor_handler);
+        }else if(actor->groupnum & groupnum2) {
+            jty_actor_add_a_handler(actor, groupnum1, actor_handler);
+        }
+    }
+}
+
 void jty_paint(void)
 {
     /* Paint map */
@@ -862,7 +921,9 @@ void jty_paint(void)
 
 void jty_iterate()
 {
-    jty_actor_ls *pg;
+    jty_actor_ls *pg, *ph;
+    jty_actor *a1, *a2;
+    jty_actor_handle_ls *pahls;
 
 #ifdef DEBUG_MODE
     static double last_t = 0;
@@ -881,6 +942,24 @@ void jty_iterate()
     /* Iterate each actor */
     for(pg = jty_engine.actors; pg != NULL; pg = pg->next){
         jty_actor_iterate(pg->actor);
+
+        /* Check for collision with any other actor */
+        for(ph = pg->next; ph != NULL; ph = ph->next){
+            a1 = pg->actor;
+            a2 = ph->actor;
+
+            if(pow(a1->x - a2->x, 2) + pow(a1->y - a2->y,2) <= 
+                    pow(a1->sprites[a1->current_sprite]->r + a2->sprites[a2->current_sprite]->r, 2)){
+                /* Loop through first colliding actor's collision handlers
+                 * to see if any of them apply to group of second actor
+                 * in collision */
+                for(pahls = a1->a_h_ls; pahls != NULL; pahls = pahls->next){
+                    if(pahls->groupnum & a2->groupnum) {
+                        pahls->actor_handler(a1, a2);
+                    }
+                }
+            }
+        }
     }
 
     return;
