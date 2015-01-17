@@ -67,6 +67,14 @@ void print_overlap(struct jty_overlap *overlap)
     return;
 }
 
+void print_c_info(struct jty_c_info *c_info)
+{
+    fprintf(stderr, "Collision info is: normal: (%f, %f)\n"
+            "  penetration: %f\n",
+            c_info->normal.x, c_info->normal.y,
+            c_info->penetration);
+}
+
 /* Calculates the linear overlap of lines going from (a1 -> a2) and (b1->b2) */
 int jty_calc_overlap_l(double a1, double a2, double b1, double b2,
         struct jty_overlap_l *overlap)
@@ -329,83 +337,11 @@ void jty_sprite_free(jty_sprite *sprite)
     glDeleteTextures(sprite->num_of_frames, sprite->textures);
     free(sprite->textures);
 
-    free(sprite->c_fields);
-
-    return;
-}
-
-void jty_sprite_load_c_fields(jty_sprite *sprite,const char *c_sprite_filename)
-{
-    SDL_Surface *image;
-    /* Height of the bitmask array */
-    int ba_h = ceil(sprite->h / JTY_CTH);
-    /* Width of the bitmask */
-    int ba_w = ceil(sprite->w / JTY_CTW);
-    int i, j, k;
-
-    sprite->ba_h = ba_h; 
-
-    Uint32 maskcolour;
-
-    if(ba_w > JTY_BFBW){
-        fprintf(stderr, "Error! Collision tilemap is too wide "
-                "for bitmask variable. \n");
-        exit(1);
-    }
-
-    /* Load the image file that contains the collision sprites */
-    image = IMG_Load(c_sprite_filename);
-    if(!image){
-        fprintf(stderr, "Error! Could not load collision sprite: %s\n",
-                c_sprite_filename);
-        exit(1);
-    }
-
-    maskcolour = SDL_MapRGB(image->format, 0, 0, 0);
-
-    sprite->c_fields = calloc(1,
-            ba_h * sizeof(*(sprite->c_fields))
-            * sprite->num_of_frames);
-
-    if(!(sprite->c_fields)){
-        fprintf(stderr,
-                "Error! Could not allocate memory for collision bit-field\n");
-        exit(1);
-    }
-
-    for(k= 0; k < sprite->num_of_frames; k++){
-        for(i=0; i < ba_h; i++){
-            for(j = 0; j < ba_w; j++){
-                if(get_pixel(image,
-                            (j + 0.5 + k * sprite->w) * JTY_CTW,
-                            (i + 0.5) * JTY_CTH )
-                        == maskcolour) {
-                    /**
-                     * This line produces the binary number
-                     * 00010000000 where there are j 0's before
-                     * the leading 1
-                     */
-                    sprite->c_fields[i + k * ba_h] |= (jty_bf_t)1 << (JTY_BFBW - j - 1);
-#ifdef DEBUG_MODE
-                    fprintf(stderr, "1");
-                }else{
-                    fprintf(stderr, "0");
-                }
-            }
-            fprintf(stderr, "\n");
-        }
-#else
-                }
-            }
-        }
-#endif
-    }
-
     return;
 }
 
 jty_sprite *jty_sprite_create(
-        int w, int h, const char *sprite_filename, const char *c_sprite_filename
+        int w, int h, const char *sprite_filename, jty_shape **c_shapes
         )
 {
     jty_sprite *sprite;
@@ -422,11 +358,6 @@ jty_sprite *jty_sprite_create(
 
     sprite->w = w;
     sprite->h = h;
-
-    if(w > h)
-        sprite->r = w;
-    else
-        sprite->r = h;
 
     sprite->p2w = mkp2(w);
     sprite->p2h = mkp2(h);
@@ -495,8 +426,8 @@ jty_sprite *jty_sprite_create(
     SDL_FreeSurface(image);
     SDL_FreeSurface(sprite_img);
 
-    jty_sprite_load_c_fields(sprite, c_sprite_filename);
-    
+    sprite->c_shapes = c_shapes;
+
     return sprite;
 }
 
@@ -547,7 +478,10 @@ static jty_actor *jty_actor_create()
 jty_actor *jty_new_actor(
         unsigned int groupnum,
         int num_of_sprites,
-        int w, int h, const char *sprite_filename, const char *c_sprite_filename,
+        int w,
+        int h,
+        const char *sprite_filename,
+        jty_shape **c_shapes,
         ...
         )
 {
@@ -558,16 +492,16 @@ jty_actor *jty_new_actor(
     int i;
 
     sprites = malloc(sizeof(*sprites) * num_of_sprites);
-    sprites[0] = jty_sprite_create(w, h, sprite_filename, c_sprite_filename);
+    sprites[0] = jty_sprite_create(w, h, sprite_filename, c_shapes);
     
-    va_start(parg, c_sprite_filename);
+    va_start(parg, c_shapes);
     for(i=1; i< num_of_sprites; i++){
         w = va_arg(parg, int);
         h = va_arg(parg, int);
         sprite_filename = va_arg(parg, char *);
-        c_sprite_filename = va_arg(parg, char *);
+        c_shapes = va_arg(parg, jty_shape **);
 
-        sprites[i] = jty_sprite_create(w, h, sprite_filename, c_sprite_filename);
+        sprites[i] = jty_sprite_create(w, h, sprite_filename, c_shapes);
     }
 
     actor = jty_actor_create();
@@ -682,32 +616,208 @@ void jty_actor_map_tile_overlap(jty_actor *a, int i, int j, jty_overlap *overlap
     return;
 }
 
-int jty_actor_map_tile_bw_c_detect(jty_actor *a, int i, int j)
+#define jty_actor_get_sprite(actor) (actor->sprites[actor->current_sprite])
+
+jty_shape jty_actor_get_c_shape(jty_actor *actor)
 {
-    int k;
-    jty_overlap overlap;
-    jty_sprite *curr_sprite = a->sprites[a->current_sprite];
+    jty_shape *csp = jty_actor_get_sprite(actor)
+        ->c_shapes[actor->current_frame];
+    jty_shape c_shape = {
+        .centre = {
+            .x = csp->centre.x + actor->x,
+            .y = csp->centre.y + actor->y
+        },
+        .w = csp->w,
+        .h = csp->h,
+        .radius = csp->radius,
+        .type = csp->type
+    };
 
-    jty_actor_map_tile_overlap(a, i, j, &overlap);
+    return c_shape;
+}
 
-    for(k = 0; k < floor(overlap.y.overlap / JTY_CTH); k++){
-        jty_bf_t bf1 = curr_sprite->c_fields[a->current_frame * curr_sprite->ba_h + k];
+/*jty_geometry_c_circle_aligned_rect(
+        jty_vector c_centre,
+        float r,
+        jty_vector r_centre,
+        float w,
+        float h,
+        jty_c_info *c_info
+        )
 
-        bf1 = (bf1 << ((int)(overlap.x.a1_offset/ JTY_CTW))) /* Shift the bit-field
-                                                          so the left-most 
-                                                          figure corresponds 
-                                                          to the start of the
-                                                          overlap */
+{
+    float a , b, c, d;
+    struct jty_actor normal;
 
-            & ((~0) << (JTY_BFBW
-                        - (int)(overlap.x.overlap/ JTY_CTW))); /* Trim the bitfield
-                                                              so that it as
-                                                              wide as the 
-                                                              overlap */
+    a = fabs(c_centre.x - (r_centre.x + w/2));
+    b = fabs(c_centre.x - (r_centre.x - w/2));
+    c = fabs(circle_centre.y - (r_centre.y + h/2));
+    d = fabs(circle_centre.y - (r_centre.y - h/2));
 
-        if(bf1){
-            return 1;
+    if (a < r + w/2 && c < r + h/2) {
+        normal.x = -1;
+        normal.y = 0;
+
+        c_info->normal = normal;
+        c_info->penetration = a - (r + w/2);
+       
+    } else if (b < r + w/2) {
+        normal.x = 1;
+        normal.y = 0;
+
+        c_info->normal = normal;
+        c_info->penetration = b - 
+
+    }
+
+}
+*/
+
+/** 
+ * Calculates collision info (which is placed in the struct pointed to
+ * by `c_info`) for the collision between two JTY_RECT jty_shapes, `rect1`
+ * and `rect2`. `v_rel` is the relative velocity of `rect1` relative to
+ * `rect2` and is used for calculating whether the collision would have
+ * been between the x or y sides of the rect.
+ * 1 is returned if rectangles collide, 0 if they don't.
+ */
+int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, jty_c_info *c_info)
+{
+    struct jty_overlap_l overlap_x, overlap_y;
+    float t_x, t_y; /* Time before current time that rectangles
+                       would have first collided in the x and 
+                       y directions, respectively */
+    float d_x, d_y; /* Distance to travel to get out of collision */
+    jty_vector normal;
+
+    if (
+            jty_calc_overlap_l(rect1->centre.x - rect1->w/2, rect1->centre.x + rect1->w/2,
+            rect2->centre.x - rect2->w/2, rect2->centre.x + rect2->w/2,
+            &overlap_x) == 0 ||
+            jty_calc_overlap_l(rect1->centre.y - rect1->h/2, rect1->centre.y + rect1->h/2,
+            rect2->centre.y - rect2->h/2, rect2->centre.y + rect2->h/2,
+            &overlap_y) == 0
+       )
+    {
+
+        return 0;
+    }
+
+    if (overlap_x.a1_offset == 0) {
+        normal.x = -1;
+        d_x = rect2->w - overlap_x.a2_offset;
+        t_x = d_x / v_rel.x * normal.x;
+        if (overlap_x.overlap == rect1->w && t_x < 0) { 
+            /* rect1 is completely embedded in
+             * at least a side of rect2, and the 
+             * relative velocity indicates
+             * the normal is in the +x direction
+             * so work out the penetration depth */
+            normal.x = 1;
+            d_x = overlap_x.overlap + overlap_x.a2_offset;
+            t_x = d_x / v_rel.x * normal.x;
         }
+    } else { /* a2_offset == 0 */
+        normal.x = 1;
+        d_x = rect1->w - overlap_x.a1_offset;
+        t_x = d_x / v_rel.x * normal.x;
+        if (overlap_x.overlap == rect2->w && t_x < 0) { 
+            normal.x = -1;
+            d_x = overlap_x.overlap + overlap_x.a1_offset;
+            t_x = d_x / v_rel.x * normal.x;
+        }
+    }
+
+    if (t_x < 0) {
+        t_x = INFINITY;
+    }
+    
+    if (overlap_y.a1_offset == 0) {
+        normal.y = -1;
+        d_y = rect2->h - overlap_y.a2_offset;
+        t_y = d_y / v_rel.y * normal.y;
+        if (overlap_y.overlap == rect1->h && t_y < 0) { 
+            normal.y = 1;
+            d_y = overlap_y.overlap + overlap_y.a2_offset;
+            t_y = d_y / v_rel.y * normal.y;
+        }
+    } else { /* a2_offset == 0 */
+        normal.y = 1;
+        d_y = rect1->h - overlap_y.a1_offset;
+        t_y = d_y / v_rel.y * normal.y;
+        if (overlap_y.overlap == rect2->h && t_y < 0) { 
+            normal.y = -1;
+            d_y = overlap_y.overlap + overlap_y.a1_offset;
+            t_y = d_y / v_rel.y * normal.y;
+        }
+    }
+
+    if (t_y < 0) {
+        t_y = INFINITY;
+    }
+
+    if (fabs(v_rel.x) < 0.01 && fabs(v_rel.y) < 0.01) {
+        c_info->normal.x = 0;
+        c_info->normal.y = 0;
+        c_info->penetration = 0;
+        return 1;
+    }
+
+    if (t_x < t_y) {
+        c_info->normal.x = normal.x;
+        c_info->normal.y = 0;
+        c_info->penetration = d_x;
+
+#ifdef DEBUG_MODE
+       fprintf(stderr, "vrel: (%f, %f)\n", v_rel.x, v_rel.y);
+       fprintf(stderr, "t's: (%f, %f)\n", t_x, t_y);
+       struct jty_overlap overlap = {.x = overlap_x, .y = overlap_y};
+       print_overlap(&overlap);
+       print_c_info(c_info);
+#endif
+        return 1;
+    }
+
+    c_info->normal.x = 0;
+    c_info->normal.y = normal.y;
+    c_info->penetration = d_y;
+
+#ifdef DEBUG_MODE
+       fprintf(stderr, "vrel: (%f, %f)\n", v_rel.x, v_rel.y);
+       struct jty_overlap overlap = {.x = overlap_x, .y = overlap_y};
+       print_overlap(&overlap);
+       print_c_info(c_info);
+#endif
+
+    return 1;
+}
+
+
+jty_shape jty_new_shape_rect(float x, float y, float w, float h)
+{
+    jty_shape rect = {.centre = {.x = x, .y = y},
+        .radius = 0,
+        .w = w,
+        .h = h,
+        .type = JTY_RECT};
+
+    return rect;
+}
+
+int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_info)
+{
+    jty_shape c_shape;
+    jty_map *map = jty_engine.map;
+    jty_shape tile_rect = jty_new_shape_rect((i + 0.5) * map->tw,
+            (j + 0.5) * map->th,
+            map->tw,
+            map->th);
+    jty_vector v_rel = {.x = actor->vx, .y = actor->vy};
+
+    c_shape = jty_actor_get_c_shape(actor);
+
+    if (c_shape.type == JTY_RECT) {
+        return jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, c_info);
     }
     return 0;
 }
@@ -740,6 +850,7 @@ void jty_actor_iterate(jty_actor *actor)
     unsigned char (*c_map)[jty_engine.map->w] =
         (void *)jty_engine.map->c_map;
     jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
+    jty_c_info c_info;
 
     i_min = (actor->x - curr_sprite->w / 2.) / jty_engine.map->tw;
     i_max = (actor->x + curr_sprite->w / 2.) / jty_engine.map->tw;
@@ -761,12 +872,14 @@ void jty_actor_iterate(jty_actor *actor)
                 k = 0;
                 while((tile_type = mhl->tiles[k])) {
                     if(tile_type == c_map[j][i]) {
-                        if(jty_actor_map_tile_bw_c_detect(
+                        if(jty_actor_map_tile_c_detect(
                                     actor,
                                     i,
-                                    j)) {
-                            mhl->map_handler(actor, i, j, tile_type);
+                                    j,
+                                    &c_info)) {
+                            mhl->map_handler(actor, i, j, tile_type, &c_info);
                         }
+                        break;
                     }
                     k++;
                 }
@@ -919,11 +1032,30 @@ void jty_paint(void)
     return;
 }
 
+int jty_actor_actor_c_detect(
+        jty_actor *a1,
+        jty_actor *a2,
+        jty_c_info *c_info)
+{
+    jty_vector v_rel = {
+        .x = a1->vx - a2->vx,
+        .y = a1->vy - a2->vy};
+    jty_shape c_shape1 = jty_actor_get_c_shape(a1);
+    jty_shape c_shape2 = jty_actor_get_c_shape(a2);
+
+    if (c_shape1.type == JTY_RECT && c_shape2.type == JTY_RECT) {
+        return jty_rect_rect_detect(&c_shape1, &c_shape2, v_rel, c_info);
+    }
+
+    return 0;
+}
+
 void jty_iterate()
 {
     jty_actor_ls *pg, *ph;
     jty_actor *a1, *a2;
     jty_actor_handle_ls *pahls;
+    jty_c_info c_info;
 
 #ifdef DEBUG_MODE
     static double last_t = 0;
@@ -943,19 +1075,18 @@ void jty_iterate()
     for(pg = jty_engine.actors; pg != NULL; pg = pg->next){
         jty_actor_iterate(pg->actor);
 
-        /* Check for collision with any other actor */
+//        /* Check for collision with any other actor */
         for(ph = pg->next; ph != NULL; ph = ph->next){
             a1 = pg->actor;
             a2 = ph->actor;
 
-            if(pow(a1->x - a2->x, 2) + pow(a1->y - a2->y,2) <= 
-                    pow(a1->sprites[a1->current_sprite]->r + a2->sprites[a2->current_sprite]->r, 2)){
+            if(jty_actor_actor_c_detect(a1, a2, &c_info)){
                 /* Loop through first colliding actor's collision handlers
                  * to see if any of them apply to group of second actor
                  * in collision */
                 for(pahls = a1->a_h_ls; pahls != NULL; pahls = pahls->next){
                     if(pahls->groupnum & a2->groupnum) {
-                        pahls->actor_handler(a1, a2);
+                        pahls->actor_handler(a1, a2, &c_info);
                     }
                 }
             }

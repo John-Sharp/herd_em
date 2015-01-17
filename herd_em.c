@@ -71,7 +71,7 @@ void sheep_wall_handler(jty_actor *a, int i, int j, char tile_type)
     return;
 }
 
-void dog_wall_handler(jty_actor *a, int i, int j, char tile_type)
+void dog_wall_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *c_info)
 {
     int tw = jty_engine.map->tw;
     int th = jty_engine.map->th;
@@ -99,6 +99,38 @@ void dog_wall_handler(jty_actor *a, int i, int j, char tile_type)
     return;
 }
 
+void rectangle_test_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *c_info)
+{
+    a->x -= c_info->normal.x * (c_info->penetration + 1);
+    a->y -= c_info->normal.y * (c_info->penetration + 1);
+
+    if (c_info->normal.x)
+        a->vx = 0;
+    if (c_info->normal.y)
+        a->vy = 0;
+}
+
+void green_red_collision_handler(jty_actor *a1, jty_actor *a2, jty_c_info *c_info)
+{
+    jty_actor *red;
+
+
+    if(a1->groupnum == DOGS)
+        red = a1;
+    else {
+        red = a2;
+        c_info->normal.x *= -1;
+        c_info->normal.y *= -1;
+    }
+
+    red->x -= c_info->normal.x * (c_info->penetration);
+    red->y -= c_info->normal.y * (c_info->penetration);
+
+    fprintf(stderr, "actor collison, actor1: %d\n", a1->uid);
+
+    print_c_info(c_info);
+
+}
 
 void input_handler(struct jty_actor *actor)
 {
@@ -144,7 +176,8 @@ void input_handler(struct jty_actor *actor)
         if(index == 4) {
             index = 9 + old_index;
         }
-
+        index = 0;
+        }
         actor->current_sprite = dog_sprites[index];
     }
 }
@@ -218,56 +251,76 @@ int main(void)
         return -1;
     }
 
+//    actor = jty_new_actor(
+//            DOGS,
+//            8,
+//            104, 68, "images/sprites/dog/left_walking.png", "images/c_sprites/dog/left_walking.png",
+//            68, 104, "images/sprites/dog/up_walking.png", "images/c_sprites/dog/up_walking.png",
+//            104, 68, "images/sprites/dog/right_walking.png", "images/c_sprites/dog/right_walking.png",
+//            68, 104, "images/sprites/dog/down_walking.png", "images/c_sprites/dog/down_walking.png",
+//            104, 68, "images/sprites/dog/left_still.png", "images/c_sprites/dog/left_still.png",
+//            68, 104, "images/sprites/dog/up_still.png", "images/c_sprites/dog/up_still.png",
+//            104, 68, "images/sprites/dog/right_still.png", "images/c_sprites/dog/right_still.png",
+//            68, 104, "images/sprites/dog/down_still.png", "images/c_sprites/dog/down_still.png"
+//            );
+    jty_shape test_c_shape = {.centre = {.x = 0, .y = 0}, .radius = 0, .w = 40, .h = 40, .type = JTY_RECT};
+    jty_shape test_c_shape2 = {.centre = {.x = 0, .y = 0}, .radius = 0, .w = 104, .h = 68, .type = JTY_RECT};
+    jty_shape *test_c_shapes[2] = {&test_c_shape, &test_c_shape2};
     actor = jty_new_actor(
             DOGS,
-            8,
-            104, 68, "images/sprites/dog/left_walking.png", "images/c_sprites/dog/left_walking.png",
-            68, 104, "images/sprites/dog/up_walking.png", "images/c_sprites/dog/up_walking.png",
-            104, 68, "images/sprites/dog/right_walking.png", "images/c_sprites/dog/right_walking.png",
-            68, 104, "images/sprites/dog/down_walking.png", "images/c_sprites/dog/down_walking.png",
-            104, 68, "images/sprites/dog/left_still.png", "images/c_sprites/dog/left_still.png",
-            68, 104, "images/sprites/dog/up_still.png", "images/c_sprites/dog/up_still.png",
-            104, 68, "images/sprites/dog/right_still.png", "images/c_sprites/dog/right_still.png",
-            68, 104, "images/sprites/dog/down_still.png", "images/c_sprites/dog/down_still.png"
-            );
+            1,
+            104, 68, "images/sprites/test/fortyfortysquare.png", test_c_shapes);
 
     actor->x = actor->px = 400;
     actor->y = actor->py = 300;
     actor->vx = 0.0;
 
     jty_actor_add_i_handler(actor, input_handler);
-    jty_actor_add_i_handler(actor, animation_handler);
-    jty_actor_add_m_handler(actor, dog_wall_handler, "b");
+    //jty_actor_add_i_handler(actor, animation_handler);
+    //jty_actor_add_m_handler(actor, dog_wall_handler, "b");
+    jty_actor_add_m_handler(actor, rectangle_test_handler, "b");
 
+
+    jty_shape sheep_c_shape = {.centre = {.x = 0, .y = 0}, .radius = 0, .w = 40, .h = 60, .type = JTY_RECT};
+    jty_shape *sheep_c_shapes[] = {&sheep_c_shape};
     sheep = jty_new_actor(
-           SHEEP,
-           16,
-           124, 124, "images/sprites/sheep/NW_walking.png", "images/c_sprites/sheep/NW_walking.png",
-           69, 106, "images/sprites/sheep/N_walking.png", "images/c_sprites/sheep/N_walking.png",
-           124, 124, "images/sprites/sheep/NE_walking.png", "images/c_sprites/sheep/NE_walking.png",
-           106, 69, "images/sprites/sheep/E_walking.png", "images/c_sprites/sheep/E_walking.png",
-           124, 124, "images/sprites/sheep/SE_walking.png", "images/c_sprites/sheep/SE_walking.png",
-           69, 106, "images/sprites/sheep/S_walking.png", "images/c_sprites/sheep/S_walking.png",
-           124, 124, "images/sprites/sheep/SW_walking.png", "images/c_sprites/sheep/SW_walking.png",
-           106, 69, "images/sprites/sheep/W_walking.png", "images/c_sprites/sheep/W_walking.png",
+            SHEEP,
+            1,
+            100, 100, "images/sprites/test/fortysixtysquare.png", sheep_c_shapes);
+    sheep->x = sheep->px = 200;
+    sheep->y = sheep->py = 200;
 
-           124, 124, "images/sprites/sheep/NW_still.png", "images/c_sprites/sheep/NW_still.png",
-           69, 106, "images/sprites/sheep/N_still.png", "images/c_sprites/sheep/N_still.png",
-           124, 124, "images/sprites/sheep/NE_still.png", "images/c_sprites/sheep/NE_still.png",
-           106, 69, "images/sprites/sheep/E_still.png", "images/c_sprites/sheep/E_still.png",
-           124, 124, "images/sprites/sheep/SE_still.png", "images/c_sprites/sheep/SE_still.png",
-           69, 106, "images/sprites/sheep/S_still.png", "images/c_sprites/sheep/S_still.png",
-           124, 124, "images/sprites/sheep/SW_still.png", "images/c_sprites/sheep/SW_still.png",
-           106, 69, "images/sprites/sheep/W_still.png", "images/c_sprites/sheep/W_still.png"
-           );
 
-    jty_actor_add_i_handler(sheep, animation_handler);
-    jty_actor_add_m_handler(sheep, sheep_wall_handler, "b");
-
-    sheep->x = sheep->px = 400;
-    sheep->y = sheep->py = 300;
-    sheep->vx = 1;
-    sheep->vy = 0;
+    jty_eng_add_a_a_handler(DOGS, SHEEP, green_red_collision_handler);
+//    sheep = jty_new_actor(
+//           SHEEP,
+//           16,
+//           124, 124, "images/sprites/sheep/NW_walking.png", "images/c_sprites/sheep/NW_walking.png",
+//           69, 106, "images/sprites/sheep/N_walking.png", "images/c_sprites/sheep/N_walking.png",
+//           124, 124, "images/sprites/sheep/NE_walking.png", "images/c_sprites/sheep/NE_walking.png",
+//           106, 69, "images/sprites/sheep/E_walking.png", "images/c_sprites/sheep/E_walking.png",
+//           124, 124, "images/sprites/sheep/SE_walking.png", "images/c_sprites/sheep/SE_walking.png",
+//           69, 106, "images/sprites/sheep/S_walking.png", "images/c_sprites/sheep/S_walking.png",
+//           124, 124, "images/sprites/sheep/SW_walking.png", "images/c_sprites/sheep/SW_walking.png",
+//           106, 69, "images/sprites/sheep/W_walking.png", "images/c_sprites/sheep/W_walking.png",
+//
+//           124, 124, "images/sprites/sheep/NW_still.png", "images/c_sprites/sheep/NW_still.png",
+//           69, 106, "images/sprites/sheep/N_still.png", "images/c_sprites/sheep/N_still.png",
+//           124, 124, "images/sprites/sheep/NE_still.png", "images/c_sprites/sheep/NE_still.png",
+//           106, 69, "images/sprites/sheep/E_still.png", "images/c_sprites/sheep/E_still.png",
+//           124, 124, "images/sprites/sheep/SE_still.png", "images/c_sprites/sheep/SE_still.png",
+//           69, 106, "images/sprites/sheep/S_still.png", "images/c_sprites/sheep/S_still.png",
+//           124, 124, "images/sprites/sheep/SW_still.png", "images/c_sprites/sheep/SW_still.png",
+//           106, 69, "images/sprites/sheep/W_still.png", "images/c_sprites/sheep/W_still.png"
+//           );
+//
+//    jty_actor_add_i_handler(sheep, animation_handler);
+//    jty_actor_add_m_handler(sheep, sheep_wall_handler, "b");
+//
+//    sheep->x = sheep->px = 400;
+//    sheep->y = sheep->py = 300;
+//    sheep->vx = 1;
+//    sheep->vy = 0;
 
 
     start_t = SDL_GetTicks();

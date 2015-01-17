@@ -10,20 +10,10 @@
 #include <limits.h>
 #include <stdarg.h>
 
-/* 
- * width and height (in pixels per bit) of 
- * engine's collision tiles
- */
-#define JTY_CTW 5
-# define JTY_CTH 5
-
-/* Width, in bits, of the 'jty_bf_t' type */
-#define JTY_BFBW (CHAR_BIT * sizeof(jty_bf_t))
-
 #define DEBUG_MODE
 
 #ifdef DEBUG_MODE
-#define POLL_TIME 0.2 /* Number of seconds that must elapse before a 
+#define POLL_TIME 2 /* Number of seconds that must elapse before a 
                        repeated debug message from an iterator 
                        is sent out again */
 #endif
@@ -37,6 +27,9 @@
 #endif
 
 typedef struct jty_eng jty_eng;
+typedef struct jty_shape jty_shape; /* Generic shape */
+typedef enum jty_shape_type { JTY_CIRCLE, JTY_RECT } jty_shape_type; /* Definitions of
+                                              different types of shape */
 typedef struct jty_map jty_map;
 typedef struct jty_sprite jty_sprite;
 typedef struct jty_actor jty_actor;
@@ -45,19 +38,26 @@ typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_map_handle_ls jty_map_handle_ls;
 typedef struct jty_actor_handle_ls jty_actor_handle_ls;
+typedef struct jty_c_info jty_c_info; /* Describes collision information */
 
 typedef void (*jty_i_handler)(struct jty_actor *actor);
-typedef void (*jty_m_handler)(jty_actor *actor, int i, int j, char tile_type);
-typedef void (*jty_a_handler)(jty_actor *actor1, jty_actor *actor2);
+typedef void (*jty_m_handler)(
+        jty_actor *actor,
+        int i,
+        int j,
+        char tile_type,
+        jty_c_info *c_info);
+typedef void (*jty_a_handler)(
+        jty_actor *actor1,
+        jty_actor *actor2,
+        jty_c_info *c_info);
 
 typedef struct jty_overlap_l jty_overlap_l;
 typedef struct jty_overlap jty_overlap;
 
-/* 
- * Type that is used to store the bit-fields
- *
- */
-typedef unsigned long jty_bf_t;
+void print_c_info(struct jty_c_info *c_info);
+
+typedef struct jty_vector jty_vector; /* Geometric vector */
 
 struct jty_overlap_l{ /* Struct for describing a linear overlap */
     double a1_offset;    /* Offset of object 1 from the start of the overlap */
@@ -65,12 +65,20 @@ struct jty_overlap_l{ /* Struct for describing a linear overlap */
     double overlap;      /* Size of the overlap */
 };
 
-struct jty_overlap{  /* Struct for describing an overlaps */
+struct jty_overlap{  /* Struct for describing an overlap */
     struct jty_overlap_l x; /* Linear overlap in x-direction */
     struct jty_overlap_l y; /* Linear overlap in y-direction */
 };
 
+struct jty_vector {
+    float x;
+    float y;
+};
 
+struct jty_c_info {
+    jty_vector normal; /* Vector describing normal of the collision */
+    float penetration; /* Distance of penetration */
+};
 
 struct jty_map{
 
@@ -88,18 +96,29 @@ struct jty_map{
 
 };
 
-struct jty_sprite{
+struct jty_shape {
+    jty_vector centre; /* Centre of shape */
+    float radius; /* If the shape is a JTY_CIRCLE can be used for storing 
+                     the radius of the circle */
+    float w, h;   /* Width and height of the shape */
+    jty_shape_type type; /* Type of the shape */
+};
+
+/* Returns a jty_shape of type `JTY_RECT` centred at (`x`,`y`),
+ * with width `w`, height `h`
+ */
+jty_shape jty_new_shape_rect(float x, float y, float w, float h);
+
+struct jty_sprite {
     int w, h;                   /* Width and height of sprite */
     int p2w, p2h;               /* Width and height of sprite to nearest power
                                    of two (as required by openGL) */
-    int r;                      /* Radius of sprite (used for collision detection */
 
     int num_of_frames;          /* Number of frames sprite has */
     GLuint *textures;           /* Pointer to texture sprites of this
                                    actor */
 
-    jty_bf_t *c_fields;         /* Collision bitfields of sprite */
-    int ba_h;                   /* Height of these bitfield arrays */
+    jty_shape **c_shapes;         /* Collision shapes of sprite */
 };
 
 struct jty_actor{       /* A character in the game */
@@ -190,14 +209,16 @@ jty_map *jty_new_map(
 
 /* Creates a new actor, consisting of 'num_of_sprites' sprites. The 
  * details of these
- * sprites are given by the succession of 'w', 'h', 'sprite_filename',
- * 'c_sprite_filename' arguments, giving the width, height, sprite 
- * filename and collilsion sprite filename of the individual sprites.
+ * sprites are given by the succession of 'w', 'h', 'c_r', 'sprite_filename'
+ * arguments, giving the width, height, sprite 
+ * filename and collilsion shapes of the individual sprites.
+ * You are responsible for freeing the 'c_shape' arrays after 
+ * actor is freed.
  */
 jty_actor *jty_new_actor(
         unsigned int groupnum,
         int num_of_sprites,
-        int w, int h, const char *sprite_filename, const char *c_sprite_filename,
+        int w, int h, const char *sprite_filename, jty_shape **c_shapes,
         ...
         );
 
