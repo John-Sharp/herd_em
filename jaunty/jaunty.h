@@ -167,8 +167,13 @@ struct jty_map_handle_ls{ /* A list of map collision handlers */
 
 struct jty_actor_handle_ls{
     jty_actor_handle_ls *next;
-    unsigned int groupnum;      /* Group of actors that will fire when actor
-                                   this list belongs to collides with */
+    unsigned int groupnum;          /* Group of actors that will fire
+                                       when actor this list belongs to
+                                       collides with */
+    unsigned int order;          /* Should this be passed to the 
+                                    actor collision handler as the 
+                                    first (has value 1) or second
+                                    argument? (has value 2) */
     jty_a_handler actor_handler; /* Pointer to the actor collision handler
                                     function */
 };

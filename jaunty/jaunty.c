@@ -968,6 +968,7 @@ void jty_actor_rm_m_handler(jty_actor *actor,
 }
 
 jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
+        unsigned int order,
         unsigned int groupnum,
         jty_a_handler actor_handler)
 {
@@ -982,6 +983,7 @@ jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
     }
 
     hp->groupnum = groupnum;
+    hp->order = order;
     hp->actor_handler = actor_handler;
     hp->next = actor->a_h_ls;
 
@@ -989,10 +991,12 @@ jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
 }
 
 void jty_actor_add_a_handler(jty_actor *actor,
+        unsigned int order,
         unsigned int groupnum,
         jty_a_handler actor_handler)
 {
     actor->a_h_ls = jty_actor_add_a_handler_int(actor,
+            order,
             groupnum,
             actor_handler);
 }
@@ -1010,9 +1014,9 @@ void jty_eng_add_a_a_handler(unsigned int groupnum1,
             if(actor->groupnum & groupnum2) {
                 groupnum2 |= groupnum1;
             }
-            jty_actor_add_a_handler(actor, groupnum2, actor_handler);
+            jty_actor_add_a_handler(actor, 1, groupnum2, actor_handler);
         }else if(actor->groupnum & groupnum2) {
-            jty_actor_add_a_handler(actor, groupnum1, actor_handler);
+            jty_actor_add_a_handler(actor, 2, groupnum1, actor_handler);
         }
     }
 }
@@ -1050,6 +1054,30 @@ int jty_actor_actor_c_detect(
     return 0;
 }
 
+/**
+ * Calls actor collision handler referred to by the actor 
+ * handler list node, `ahls_ptr`, passing
+ * actors pointed to by `a1` and `a2` to `ahp` in the order
+ * intended by `ahp` and providing any corrections to the 
+ * collision info pointed to by `c_info` as necessary
+ */
+void call_actor_handler(
+        jty_actor_handle_ls *ahls_ptr,
+        jty_actor *a1,
+        jty_actor *a2,
+        jty_c_info *c_info)
+{
+    if (ahls_ptr->order == 1) {
+        ahls_ptr->actor_handler(a1, a2, c_info);
+    } else if (ahls_ptr->order == 2) {
+        c_info->normal.x *= -1;
+        c_info->normal.y *= -1;
+        ahls_ptr->actor_handler(a2, a1, c_info);
+    } else {
+        abort();
+    }
+}
+
 void jty_iterate()
 {
     jty_actor_ls *pg, *ph;
@@ -1084,9 +1112,12 @@ void jty_iterate()
                 /* Loop through first colliding actor's collision handlers
                  * to see if any of them apply to group of second actor
                  * in collision */
+
                 for(pahls = a1->a_h_ls; pahls != NULL; pahls = pahls->next){
+                    fprintf(stderr, "groupnum a1_h: %d\n", pahls->groupnum);
+                    fprintf(stderr, "groupnum a2: %d\n", a2->groupnum);
                     if(pahls->groupnum & a2->groupnum) {
-                        pahls->actor_handler(a1, a2, &c_info);
+                        call_actor_handler(pahls, a1, a2, &c_info);
                     }
                 }
             }

@@ -110,21 +110,10 @@ void rectangle_test_handler(jty_actor *a, int i, int j, char tile_type, jty_c_in
         a->vy = 0;
 }
 
-void green_red_collision_handler(jty_actor *a1, jty_actor *a2, jty_c_info *c_info)
+void red_green_collision_handler(jty_actor *a1, jty_actor *a2, jty_c_info *c_info)
 {
-    jty_actor *red;
-
-
-    if(a1->groupnum == DOGS)
-        red = a1;
-    else {
-        red = a2;
-        c_info->normal.x *= -1;
-        c_info->normal.y *= -1;
-    }
-
-    red->x -= c_info->normal.x * (c_info->penetration);
-    red->y -= c_info->normal.y * (c_info->penetration);
+    a1->x -= c_info->normal.x * (c_info->penetration);
+    a1->y -= c_info->normal.y * (c_info->penetration);
 
     fprintf(stderr, "actor collison, actor1: %d\n", a1->uid);
 
@@ -177,7 +166,7 @@ void input_handler(struct jty_actor *actor)
             index = 9 + old_index;
         }
         index = 0;
-        }
+
         actor->current_sprite = dog_sprites[index];
     }
 }
@@ -291,7 +280,7 @@ int main(void)
     sheep->y = sheep->py = 200;
 
 
-    jty_eng_add_a_a_handler(DOGS, SHEEP, green_red_collision_handler);
+    jty_eng_add_a_a_handler(DOGS, SHEEP, red_green_collision_handler);
 //    sheep = jty_new_actor(
 //           SHEEP,
 //           16,
