@@ -75,13 +75,21 @@ void print_c_info(struct jty_c_info *c_info)
             c_info->penetration);
 }
 
+void print_c_shape(jty_shape *c_shape)
+{
+    fprintf(stderr, "C-shape: centre: (%f, %f)\n"
+            "  width, height: (%f, %f)\n",
+            c_shape->centre.x, c_shape->centre.y,
+            c_shape->w, c_shape->h);
+}
+
 /* Calculates the linear overlap of lines going from (a1 -> a2) and (b1->b2) */
 int jty_calc_overlap_l(double a1, double a2, double b1, double b2,
         struct jty_overlap_l *overlap)
 {
 
     if(a1 < b1){
-        if(a2 < b1){
+        if(a2 <= b1){
             return 0;
         }
         overlap->a1_offset = b1 - a1;
@@ -94,7 +102,7 @@ int jty_calc_overlap_l(double a1, double a2, double b1, double b2,
         }
 
     }else{
-        if(b2 < a1){
+        if(b2 <= a1){
             return 0;
         }
 
@@ -691,10 +699,12 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
     jty_vector normal;
 
     if (
-            jty_calc_overlap_l(rect1->centre.x - rect1->w/2, rect1->centre.x + rect1->w/2,
+            jty_calc_overlap_l(
+            rect1->centre.x - rect1->w/2, rect1->centre.x + rect1->w/2,
             rect2->centre.x - rect2->w/2, rect2->centre.x + rect2->w/2,
             &overlap_x) == 0 ||
-            jty_calc_overlap_l(rect1->centre.y - rect1->h/2, rect1->centre.y + rect1->h/2,
+            jty_calc_overlap_l(
+            rect1->centre.y - rect1->h/2, rect1->centre.y + rect1->h/2,
             rect2->centre.y - rect2->h/2, rect2->centre.y + rect2->h/2,
             &overlap_y) == 0
        )
@@ -707,28 +717,13 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
         normal.x = -1;
         d_x = rect2->w - overlap_x.a2_offset;
         t_x = d_x / v_rel.x * normal.x;
-        if (overlap_x.overlap == rect1->w && t_x < 0) { 
-            /* rect1 is completely embedded in
-             * at least a side of rect2, and the 
-             * relative velocity indicates
-             * the normal is in the +x direction
-             * so work out the penetration depth */
-            normal.x = 1;
-            d_x = overlap_x.overlap + overlap_x.a2_offset;
-            t_x = d_x / v_rel.x * normal.x;
-        }
     } else { /* a2_offset == 0 */
         normal.x = 1;
         d_x = rect1->w - overlap_x.a1_offset;
         t_x = d_x / v_rel.x * normal.x;
-        if (overlap_x.overlap == rect2->w && t_x < 0) { 
-            normal.x = -1;
-            d_x = overlap_x.overlap + overlap_x.a1_offset;
-            t_x = d_x / v_rel.x * normal.x;
-        }
     }
 
-    if (t_x < 0) {
+    if (t_x < 0 || v_rel.x == 0) {
         t_x = INFINITY;
     }
     
@@ -736,23 +731,13 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
         normal.y = -1;
         d_y = rect2->h - overlap_y.a2_offset;
         t_y = d_y / v_rel.y * normal.y;
-        if (overlap_y.overlap == rect1->h && t_y < 0) { 
-            normal.y = 1;
-            d_y = overlap_y.overlap + overlap_y.a2_offset;
-            t_y = d_y / v_rel.y * normal.y;
-        }
     } else { /* a2_offset == 0 */
         normal.y = 1;
         d_y = rect1->h - overlap_y.a1_offset;
         t_y = d_y / v_rel.y * normal.y;
-        if (overlap_y.overlap == rect2->h && t_y < 0) { 
-            normal.y = -1;
-            d_y = overlap_y.overlap + overlap_y.a1_offset;
-            t_y = d_y / v_rel.y * normal.y;
-        }
     }
 
-    if (t_y < 0) {
+    if (t_y < 0 || v_rel.y == 0) {
         t_y = INFINITY;
     }
 
@@ -774,6 +759,8 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
        struct jty_overlap overlap = {.x = overlap_x, .y = overlap_y};
        print_overlap(&overlap);
        print_c_info(c_info);
+       print_c_shape(rect1);
+       print_c_shape(rect2);
 #endif
         return 1;
     }
@@ -784,9 +771,12 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
 
 #ifdef DEBUG_MODE
        fprintf(stderr, "vrel: (%f, %f)\n", v_rel.x, v_rel.y);
+       fprintf(stderr, "t's: (%f, %f)\n", t_x, t_y);
        struct jty_overlap overlap = {.x = overlap_x, .y = overlap_y};
        print_overlap(&overlap);
        print_c_info(c_info);
+       print_c_shape(rect1);
+       print_c_shape(rect2);
 #endif
 
     return 1;
@@ -812,7 +802,7 @@ int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_in
             (j + 0.5) * map->th,
             map->tw,
             map->th);
-    jty_vector v_rel = {.x = actor->vx, .y = actor->vy};
+    jty_vector v_rel = {.x = actor->pvx, .y = actor->pvy};
 
     c_shape = jty_actor_get_c_shape(actor);
 
@@ -822,10 +812,51 @@ int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_in
     return 0;
 }
 
+/**
+ * Calls the map handler referred to in `mhl` if it should be 
+ * called. The map handler should be called if the collision
+ * wouldn't push `actor` onto another tile that is handled
+ * by the same collision handler. This stops the actor getting
+ * stuck when it moves up the side of a set of tiles that
+ * are contiguous 
+ */
+void process_map_collision(
+        jty_map_handle_ls *mhl,
+        jty_actor *actor,
+        int i,
+        int j,
+        char tile_type,
+        jty_c_info *c_info)
+{
+    unsigned char (*c_map)[jty_engine.map->w] =
+        (void *)jty_engine.map->c_map;
+
+    if (c_info->normal.x == -1
+            && i > 0 && strchr(mhl->tiles, c_map[j][i-1])) {
+        return;
+    }
+    if (c_info->normal.x == 1 &&
+            i < jty_engine.map->w - 1 && strchr(mhl->tiles, c_map[j][i+1])) {
+        return;
+    }
+    if (c_info->normal.y == -1 &&
+            j > 0 && strchr(mhl->tiles, c_map[j -1][i])) {
+        return;
+    }
+    if (c_info->normal.y == 1 &&
+            j < jty_engine.map->h - 1 && strchr(mhl->tiles, c_map[j + 1][i])) {
+        return;
+    }
+
+    mhl->map_handler(actor, i, j, tile_type, c_info);
+}
+
 void jty_actor_iterate(jty_actor *actor)
 {
     actor->px = actor->x;
     actor->py = actor->y;
+    actor->pvx = actor->vx;
+    actor->pvy = actor->vy;
 
     actor->x += actor->vx;
     actor->y += actor->vy;
@@ -877,7 +908,13 @@ void jty_actor_iterate(jty_actor *actor)
                                     i,
                                     j,
                                     &c_info)) {
-                            mhl->map_handler(actor, i, j, tile_type, &c_info);
+                            process_map_collision(
+                                    mhl,
+                                    actor,
+                                    i,
+                                    j,
+                                    tile_type,
+                                    &c_info);
                         }
                         break;
                     }
@@ -1042,8 +1079,8 @@ int jty_actor_actor_c_detect(
         jty_c_info *c_info)
 {
     jty_vector v_rel = {
-        .x = a1->vx - a2->vx,
-        .y = a1->vy - a2->vy};
+        .x = a1->pvx - a2->pvx,
+        .y = a1->pvy - a2->pvy};
     jty_shape c_shape1 = jty_actor_get_c_shape(a1);
     jty_shape c_shape2 = jty_actor_get_c_shape(a2);
 

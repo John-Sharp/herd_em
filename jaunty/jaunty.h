@@ -55,7 +55,8 @@ typedef void (*jty_a_handler)(
 typedef struct jty_overlap_l jty_overlap_l;
 typedef struct jty_overlap jty_overlap;
 
-void print_c_info(struct jty_c_info *c_info);
+jty_shape jty_actor_get_c_shape(jty_actor *actor);
+
 
 typedef struct jty_vector jty_vector; /* Geometric vector */
 
@@ -131,6 +132,7 @@ struct jty_actor{       /* A character in the game */
                                   position in fractional frame */
 
     double vx, vy;              /* x and y components of velocity */
+    double pvx, pvy;
     double ax, ay;              /* x and y components of acceleration */
                                    
     jty_sprite **sprites;       /* Sprites of this actor */
