@@ -57,7 +57,6 @@ typedef struct jty_overlap jty_overlap;
 
 jty_shape jty_actor_get_c_shape(jty_actor *actor);
 
-
 typedef struct jty_vector jty_vector; /* Geometric vector */
 
 struct jty_overlap_l{ /* Struct for describing a linear overlap */
@@ -75,6 +74,8 @@ struct jty_vector {
     float x;
     float y;
 };
+
+#define jty_vector_mag_sq(v) (pow(v.x, 2) + pow(v.y, 2))
 
 struct jty_c_info {
     jty_vector normal; /* Vector describing normal of the collision */
@@ -146,10 +147,23 @@ struct jty_actor{       /* A character in the game */
     jty_actor_handle_ls *a_h_ls; /* List of actor collision handlers */
 };
 
+void jty_eng_free_actor(jty_actor *actor);
+
 struct jty_actor_ls{         /* List of actors */
     jty_actor *actor; /* Pointer to actor */
     jty_actor_ls *next; /* Pointer to the next node of the list */
 };
+
+/** 
+ * Adds the actor `actor` to `ls` and returns a reference to `ls`
+ */
+jty_actor_ls *jty_actor_ls_add(jty_actor_ls *ls, jty_actor *actor);
+
+/** 
+ * Removes the node of `ls` containing `actor` and returns a reference
+ * to `ls
+ */
+jty_actor_ls *jty_actor_ls_rm(jty_actor_ls *ls, jty_actor *actor);
 
 struct jty_actor_i_ls{      /* List of actor iterators */
     void (*i_handler)(struct jty_actor *); /* Pointer to the iteration
@@ -196,7 +210,7 @@ struct jty_eng{
 };
 
 /* Global variable containing information about the engine */
-struct jty_eng jty_engine;
+struct jty_eng *jty_engine;
 
 
 /* Frees all resources allocated to 'map' */
@@ -222,12 +236,28 @@ jty_map *jty_new_map(
  * You are responsible for freeing the 'c_shape' arrays after 
  * actor is freed.
  */
-jty_actor *jty_new_actor(
+jty_actor *new_jty_actor(
         unsigned int groupnum,
         int num_of_sprites,
         int w, int h, const char *sprite_filename, jty_shape **c_shapes,
         ...
         );
+
+
+/**
+ * Initialises the attributes of a pre-malloced actor `actor`
+ */
+jty_actor *jty_actor_init(
+        jty_actor *actor,
+        unsigned int groupnum,
+        int num_of_sprites,
+        int w,
+        int h,
+        const char *sprite_filename,
+        jty_shape **c_shapes,
+        ...
+        );
+
 
 /* Add a handler that will get called once each logic frame for the actor */
 void jty_actor_add_i_handler(jty_actor *actor,

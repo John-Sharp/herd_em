@@ -134,10 +134,10 @@ static void initialise_video(unsigned int win_w,
     }
 
     info = SDL_GetVideoInfo();
-    jty_engine.screen = SDL_SetVideoMode(win_w, win_h,
+    jty_engine->screen = SDL_SetVideoMode(win_w, win_h,
             info->vfmt->BitsPerPixel, flags);
 
-    if(!jty_engine.screen){
+    if(!jty_engine->screen){
         fprintf(stderr, "Failed to open screen!\n");
         exit(1);
     }
@@ -155,10 +155,13 @@ static void initialise_video(unsigned int win_w,
 
 jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h)
 {
+    jty_engine = malloc(sizeof(*jty_engine));
     initialise_video(win_w, win_h);
 
-    jty_engine.map = NULL;
-    return &jty_engine;
+    jty_engine->map = NULL;
+    jty_engine->actors = NULL;
+    jty_engine->elapsed_frames = 0;
+    return jty_engine;
 }
 
 /* Map functions */
@@ -173,6 +176,7 @@ void jty_map_free(jty_map *map)
     SDL_FreeSurface(map->tilepalette);
     glDeleteTextures(1, &(map->texname));
     free(map);
+
     return ;
 }
 
@@ -266,8 +270,8 @@ jty_map *jty_new_map(
 
     map->map_rect.x = 0;
     map->map_rect.y = 0;
-    map->map_rect.w = jty_engine.screen->w;
-    map->map_rect.h = jty_engine.screen->h;
+    map->map_rect.w = jty_engine->screen->w;
+    map->map_rect.h = jty_engine->screen->h;
 
     map->tilepalette = IMG_Load(filename);
     if(!map->tilepalette){
@@ -461,13 +465,31 @@ void jty_actor_free(jty_actor *actor)
     return;
 }
 
-static jty_actor *jty_actor_create()
+static jty_actor *jty_actor_init_int(
+        jty_actor *actor,
+        unsigned int groupnum,
+        int num_of_sprites,
+        int w,
+        int h,
+        const char *sprite_filename,
+        jty_shape **c_shapes,
+        va_list parg
+        )
 {
-    jty_actor *actor;
+    jty_sprite **sprites;
+    static unsigned int uid = 0;
+    int i;
 
-    if((actor = malloc(sizeof(*actor))) == NULL){
-        fprintf(stderr, "Error allocating memory for actor.\n");
-        exit(1);
+    sprites = malloc(sizeof(*sprites) * num_of_sprites);
+    sprites[0] = jty_sprite_create(w, h, sprite_filename, c_shapes);
+
+    for(i=1; i< num_of_sprites; i++){
+        w = va_arg(parg, int);
+        h = va_arg(parg, int);
+        sprite_filename = va_arg(parg, char *);
+        c_shapes = va_arg(parg, jty_shape **);
+
+        sprites[i] = jty_sprite_create(w, h, sprite_filename, c_shapes);
     }
 
     actor->x = actor->y = actor->px = actor->py = 0;
@@ -480,39 +502,6 @@ static jty_actor *jty_actor_create()
     actor->m_h_ls = NULL;
     actor->a_h_ls = NULL;
 
-    return actor;
-}
-
-jty_actor *jty_new_actor(
-        unsigned int groupnum,
-        int num_of_sprites,
-        int w,
-        int h,
-        const char *sprite_filename,
-        jty_shape **c_shapes,
-        ...
-        )
-{
-    jty_actor *actor;
-    jty_sprite **sprites;
-    static unsigned int uid = 0;
-    va_list parg;
-    int i;
-
-    sprites = malloc(sizeof(*sprites) * num_of_sprites);
-    sprites[0] = jty_sprite_create(w, h, sprite_filename, c_shapes);
-    
-    va_start(parg, c_shapes);
-    for(i=1; i< num_of_sprites; i++){
-        w = va_arg(parg, int);
-        h = va_arg(parg, int);
-        sprite_filename = va_arg(parg, char *);
-        c_shapes = va_arg(parg, jty_shape **);
-
-        sprites[i] = jty_sprite_create(w, h, sprite_filename, c_shapes);
-    }
-
-    actor = jty_actor_create();
     actor->groupnum = groupnum;
     actor->sprites = sprites;
     actor->uid = uid;
@@ -524,13 +513,13 @@ jty_actor *jty_new_actor(
 #endif
 
     /* Put the actor in the map's actor list */
-    jty_engine.actors = jty_actor_ls_add(jty_engine.actors, actor);
+    jty_engine->actors = jty_actor_ls_add(jty_engine->actors, actor);
 
 #ifdef DEBUG_MODE
     jty_actor_ls *q;
 
     fprintf(stderr, "List of engine's actors: ");
-    for(q=jty_engine.actors; q!=NULL; q=q->next){
+    for(q=jty_engine->actors; q!=NULL; q=q->next){
         fprintf(stderr, "%d, ", q->actor->uid);
     }
     fprintf(stderr, "\n");
@@ -539,10 +528,60 @@ jty_actor *jty_new_actor(
     return actor;
 }
 
+jty_actor *new_jty_actor(
+        unsigned int groupnum,
+        int num_of_sprites,
+        int w,
+        int h,
+        const char *sprite_filename,
+        jty_shape **c_shapes,
+        ...
+        )
+{
+    jty_actor *actor = malloc(sizeof(*actor));
+    va_list parg;
+    
+    va_start(parg, c_shapes);
+    return jty_actor_init_int(
+            actor,
+            groupnum,
+            num_of_sprites,
+            w,
+            h,
+            sprite_filename,
+            c_shapes,
+            parg);
+}
+
+jty_actor *jty_actor_init(
+        jty_actor *actor,
+        unsigned int groupnum,
+        int num_of_sprites,
+        int w,
+        int h,
+        const char *sprite_filename,
+        jty_shape **c_shapes,
+        ...
+        )
+{
+    va_list parg;
+
+    va_start(parg, c_shapes);
+    return jty_actor_init_int(
+            actor,
+            groupnum,
+            num_of_sprites,
+            w,
+            h,
+            sprite_filename,
+            c_shapes,
+            parg);
+}
+
 /* Paint the 'actor' */
 static int jty_actor_paint(jty_actor *actor)
 {
-    double frame = jty_engine.elapsed_frames;
+    double frame = jty_engine->elapsed_frames;
     double fframe = frame - floor(frame);  /* fframe holds what fraction we
                                               through the current frame */
     jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
@@ -614,11 +653,11 @@ void jty_actor_map_tile_overlap(jty_actor *a, int i, int j, jty_overlap *overlap
     jty_sprite *curr_sprite = a->sprites[a->current_sprite];
 
     jty_calc_overlap_l(a->x - curr_sprite->w / 2., a->x + curr_sprite->w / 2.,
-            i * jty_engine.map->tw, (i + 1) * jty_engine.map->tw,
+            i * jty_engine->map->tw, (i + 1) * jty_engine->map->tw,
             &(overlap->x));
 
     jty_calc_overlap_l(a->y - curr_sprite->h / 2., a->y + curr_sprite->h / 2.,
-            j * jty_engine.map->th, (j + 1) * jty_engine.map->th,
+            j * jty_engine->map->th, (j + 1) * jty_engine->map->th,
             &(overlap->y));
 
     return;
@@ -797,7 +836,7 @@ jty_shape jty_new_shape_rect(float x, float y, float w, float h)
 int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_info)
 {
     jty_shape c_shape;
-    jty_map *map = jty_engine.map;
+    jty_map *map = jty_engine->map;
     jty_shape tile_rect = jty_new_shape_rect((i + 0.5) * map->tw,
             (j + 0.5) * map->th,
             map->tw,
@@ -828,15 +867,15 @@ void process_map_collision(
         char tile_type,
         jty_c_info *c_info)
 {
-    unsigned char (*c_map)[jty_engine.map->w] =
-        (void *)jty_engine.map->c_map;
+    unsigned char (*c_map)[jty_engine->map->w] =
+        (void *)jty_engine->map->c_map;
 
     if (c_info->normal.x == -1
             && i > 0 && strchr(mhl->tiles, c_map[j][i-1])) {
         return;
     }
     if (c_info->normal.x == 1 &&
-            i < jty_engine.map->w - 1 && strchr(mhl->tiles, c_map[j][i+1])) {
+            i < jty_engine->map->w - 1 && strchr(mhl->tiles, c_map[j][i+1])) {
         return;
     }
     if (c_info->normal.y == -1 &&
@@ -844,7 +883,7 @@ void process_map_collision(
         return;
     }
     if (c_info->normal.y == 1 &&
-            j < jty_engine.map->h - 1 && strchr(mhl->tiles, c_map[j + 1][i])) {
+            j < jty_engine->map->h - 1 && strchr(mhl->tiles, c_map[j + 1][i])) {
         return;
     }
 
@@ -878,18 +917,18 @@ void jty_actor_iterate(jty_actor *actor)
     int i, j, k;
     jty_map_handle_ls *mhl;
     char tile_type;
-    unsigned char (*c_map)[jty_engine.map->w] =
-        (void *)jty_engine.map->c_map;
+    unsigned char (*c_map)[jty_engine->map->w] =
+        (void *)jty_engine->map->c_map;
     jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
     jty_c_info c_info;
 
-    i_min = (actor->x - curr_sprite->w / 2.) / jty_engine.map->tw;
-    i_max = (actor->x + curr_sprite->w / 2.) / jty_engine.map->tw;
-    j_min = (actor->y - curr_sprite->h / 2.) / jty_engine.map->th;
-    j_max = (actor->y + curr_sprite->h / 2.) / jty_engine.map->th;
+    i_min = (actor->x - curr_sprite->w / 2.) / jty_engine->map->tw;
+    i_max = (actor->x + curr_sprite->w / 2.) / jty_engine->map->tw;
+    j_min = (actor->y - curr_sprite->h / 2.) / jty_engine->map->th;
+    j_max = (actor->y + curr_sprite->h / 2.) / jty_engine->map->th;
 
 #ifdef DEBUG_MODE
-    if (jty_engine.print_messages) {
+    if (jty_engine->print_messages) {
         fprintf(stderr, "Tiles between %d <= i <= %d"
                 " and %d <= j <= %d collided with by actor %d\n",
                 i_min, i_max, j_min, j_max, actor->uid);
@@ -1045,7 +1084,7 @@ void jty_eng_add_a_a_handler(unsigned int groupnum1,
     jty_actor_ls *p_actor_ls;
     jty_actor *actor;
 
-    for(p_actor_ls = jty_engine.actors; p_actor_ls != NULL; p_actor_ls = p_actor_ls->next) {
+    for(p_actor_ls = jty_engine->actors; p_actor_ls != NULL; p_actor_ls = p_actor_ls->next) {
         actor = p_actor_ls->actor;
         if(actor->groupnum & groupnum1) {
             if(actor->groupnum & groupnum2) {
@@ -1061,11 +1100,11 @@ void jty_eng_add_a_a_handler(unsigned int groupnum1,
 void jty_paint(void)
 {
     /* Paint map */
-    jty_map_paint(jty_engine.map);
+    jty_map_paint(jty_engine->map);
 
     /* Paint actors */
     jty_actor_ls *pg;
-    for(pg = jty_engine.actors; pg != NULL; pg = pg->next){
+    for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
         jty_actor_paint(pg->actor);
     }
 
@@ -1129,15 +1168,15 @@ void jty_iterate()
     curr_t = SDL_GetTicks();
     
     if( curr_t - last_t >= POLL_TIME * 1000){
-        jty_engine.print_messages = 1;
+        jty_engine->print_messages = 1;
         last_t = curr_t;
     }else
-        jty_engine.print_messages = 0;
+        jty_engine->print_messages = 0;
 
 #endif
 
     /* Iterate each actor */
-    for(pg = jty_engine.actors; pg != NULL; pg = pg->next){
+    for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
         jty_actor_iterate(pg->actor);
 
 //        /* Check for collision with any other actor */
@@ -1164,19 +1203,45 @@ void jty_iterate()
     return;
 }
 
+jty_actor_ls *jty_actor_ls_rm(jty_actor_ls *ls, jty_actor *actor)
+{
+    if (ls == NULL)
+        return NULL;
+
+    if (ls->actor == actor) {
+        jty_actor_ls *p;
+        p = ls->next;
+        //free(ls);
+        return p;
+    }
+
+    ls->next = jty_actor_ls_rm(ls->next, actor);
+    return ls;
+}
+
+void jty_eng_free_actor(jty_actor *actor)
+{
+    jty_engine->actors = jty_actor_ls_rm(jty_engine->actors, actor);
+    free(actor);
+}
 
 void jty_eng_free(void)
 {
     SDL_Quit();        
+    jty_actor *a;
 
     /* Free map */
-    jty_map_free(jty_engine.map);
+    jty_map_free(jty_engine->map);
 
     /* Free actors */
-    jty_actor_ls *pg;
-    for(pg = jty_engine.actors; pg != NULL; pg = pg->next){
-        jty_actor_free(pg->actor);
+    while(jty_engine->actors) {
+        a = jty_engine->actors->actor;
+        jty_engine->actors = jty_actor_ls_rm(jty_engine->actors,
+                jty_engine->actors->actor);
+        free(a);
     }
+
+    free(jty_engine);
 
     return;
 }
