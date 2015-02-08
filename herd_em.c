@@ -1,17 +1,18 @@
 #include "jaunty/jaunty.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include <math.h>
 #define WIN_W 800
 #define WIN_H 600
 #define FPS 300
 
 #define DEBUG_MODE
 
-enum {
-    DIRECTION_NW, DIRECTION_N, DIRECTION_NE,
-    DIRECTION_E, DIRECTION_SE, DIRECTION_S,
-    DIRECTION_SW, DIRECTION_W
-};
+typedef enum herdem_direction{
+    DIRECTION_E, DIRECTION_NE, DIRECTION_N,
+    DIRECTION_NW, DIRECTION_W, DIRECTION_SW,
+    DIRECTION_S, DIRECTION_SE 
+} herdem_direction;
 
 enum { DOGS = 1, SHEEP = 1<<1 };
 
@@ -210,8 +211,6 @@ void input_handler(struct jty_actor *actor)
     }
 }
 
-
-
 void animation_handler(struct jty_actor *actor) 
 {
     int animation_framerate = 8; /* frames per second */
@@ -285,18 +284,28 @@ typedef struct herdem_sheep {
     jty_actor actor;
     double max_speed;
     double normal_speed;
+    double aversion_impulse;
 } herdem_sheep;
 
+herdem_direction herdem_dog_get_direction(herdem_dog *dog)
+{
+    return dog->actor.current_sprite % 8;
+}
 
-int is_in_scare_window(jty_vector r_rel)
+int herdem_dog_has_in_scare_window(herdem_dog *dog, jty_vector r_rel)
 {
     /* b = (cos(22.5))**2 */
     double b = 0.8535533905932737;
-    float x;
+    jty_vector r_rel_rot;
+    double x;
+    double theta = (double)herdem_dog_get_direction(dog) * M_PI/4;
 
-    x = 1 / (1 + r_rel.y * r_rel.y / (r_rel.x * r_rel.x));
+    r_rel_rot.x = r_rel.x * cos(theta) - r_rel.y * sin(theta);
+    r_rel_rot.y = r_rel.x * sin(theta) + r_rel.y * cos(theta);
 
-    return x > b && r_rel.x > 0;
+    x = 1 / (1 + r_rel_rot.y * r_rel_rot.y / (r_rel_rot.x * r_rel_rot.x));
+
+    return x > b && r_rel_rot.x > 0;
 }
 
 void sheep_iterator(jty_actor *actor)
@@ -315,7 +324,7 @@ void sheep_iterator(jty_actor *actor)
         r_rel.y = sheep->actor.y - dog->actor.y;
         r_rel_mag_sq = jty_vector_mag_sq(r_rel); 
         if (r_rel_mag_sq < pow(dog->scare_radius_max, 2)) {
-            if (is_in_scare_window(r_rel)) {
+            if (herdem_dog_has_in_scare_window(dog, r_rel)) {
                 double r_rel_mag = sqrt(r_rel_mag_sq);
                 flee_speed = sheep->max_speed / (dog->scare_radius_min \
                         - dog->scare_radius_max) * r_rel_mag \
@@ -325,6 +334,13 @@ void sheep_iterator(jty_actor *actor)
                 sheep->actor.vx = 1 / r_rel_mag * r_rel.x * flee_speed;
                 sheep->actor.vy = 1 / r_rel_mag * r_rel.y * flee_speed;
                 panicked = true;
+            } else {
+                jty_vector v = {.x = sheep->actor.vx, .y = sheep->actor.vy};
+                v.x +=  1 / r_rel_mag_sq * r_rel.x * sheep->aversion_impulse;
+                v.y +=  1 / r_rel_mag_sq * r_rel.y * sheep->aversion_impulse;
+
+                sheep->actor.vx = v.x;
+                sheep->actor.vy = v.y;
             }
         }
     }
@@ -332,10 +348,14 @@ void sheep_iterator(jty_actor *actor)
     if (!panicked) {
         jty_vector v = {.x = sheep->actor.vx, .y = sheep->actor.vy};
         double sheep_speed = sqrt(jty_vector_mag_sq(v));
+        if (sheep_speed == 0) {
+            return;
+        }
         sheep->actor.vx = 1 / sheep_speed * sheep->actor.vx  * sheep->normal_speed;
         sheep->actor.vy = 1 / sheep_speed * sheep->actor.vy  * sheep->normal_speed;
     }
 
+    eight_way_direction_change((jty_actor *)sheep);
 
 }
 
@@ -345,27 +365,29 @@ herdem_sheep *herdem_sheep_init(herdem_sheep *sheep)
             (jty_actor *)sheep,
             SHEEP,
             16,
-            124, 124, "images/sprites/sheep/NW_walking.png", herdem_engine->sheep_c_shapes,
-            69, 106, "images/sprites/sheep/N_walking.png", herdem_engine->sheep_c_shapes,
-            124, 124, "images/sprites/sheep/NE_walking.png", herdem_engine->sheep_c_shapes,
             106, 69, "images/sprites/sheep/E_walking.png", herdem_engine->sheep_c_shapes,
-            124, 124, "images/sprites/sheep/SE_walking.png", herdem_engine->sheep_c_shapes,
-            69, 106, "images/sprites/sheep/S_walking.png", herdem_engine->sheep_c_shapes,
-            124, 124, "images/sprites/sheep/SW_walking.png", herdem_engine->sheep_c_shapes,
+            124, 124, "images/sprites/sheep/NE_walking.png", herdem_engine->sheep_c_shapes,
+            69, 106, "images/sprites/sheep/N_walking.png", herdem_engine->sheep_c_shapes,
+            124, 124, "images/sprites/sheep/NW_walking.png", herdem_engine->sheep_c_shapes,
             106, 69, "images/sprites/sheep/W_walking.png", herdem_engine->sheep_c_shapes,
+            124, 124, "images/sprites/sheep/SW_walking.png", herdem_engine->sheep_c_shapes,
+            69, 106, "images/sprites/sheep/S_walking.png", herdem_engine->sheep_c_shapes,
+            124, 124, "images/sprites/sheep/SE_walking.png", herdem_engine->sheep_c_shapes,
 
-            124, 124, "images/sprites/sheep/NW_still.png", herdem_engine->sheep_c_shapes,
-            69, 106, "images/sprites/sheep/N_still.png", herdem_engine->sheep_c_shapes,
-            124, 124, "images/sprites/sheep/NE_still.png", herdem_engine->sheep_c_shapes,
             106, 69, "images/sprites/sheep/E_still.png", herdem_engine->sheep_c_shapes,
-            124, 124, "images/sprites/sheep/SE_still.png", herdem_engine->sheep_c_shapes,
-            69, 106, "images/sprites/sheep/S_still.png", herdem_engine->sheep_c_shapes,
+            124, 124, "images/sprites/sheep/NE_still.png", herdem_engine->sheep_c_shapes,
+            69, 106, "images/sprites/sheep/N_still.png", herdem_engine->sheep_c_shapes,
+            124, 124, "images/sprites/sheep/NW_still.png", herdem_engine->sheep_c_shapes,
+            106, 69, "images/sprites/sheep/W_still.png", herdem_engine->sheep_c_shapes,
             124, 124, "images/sprites/sheep/SW_still.png", herdem_engine->sheep_c_shapes,
-            106, 69, "images/sprites/sheep/W_still.png", herdem_engine->sheep_c_shapes
+            69, 106, "images/sprites/sheep/S_still.png", herdem_engine->sheep_c_shapes,
+            124, 124, "images/sprites/sheep/SE_still.png", herdem_engine->sheep_c_shapes
             );
 
     sheep->max_speed = 2.5;
-    sheep->normal_speed = 1.2;
+    sheep->normal_speed = 0.9;
+    sheep->aversion_impulse = 5; 
+
     jty_actor_add_i_handler((jty_actor *)sheep, animation_handler);
     jty_actor_add_i_handler((jty_actor *)sheep, sheep_iterator);
     jty_actor_add_m_handler((jty_actor *)sheep, sheep_wall_handler, "b");
@@ -395,23 +417,23 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
             (jty_actor *)dog,
             DOGS,
             16,
-            127, 127, "images/sprites/dog/NW_walking.png", herdem_engine->dog_c_shapes,
-            71, 108, "images/sprites/dog/N_walking.png", herdem_engine->dog_c_shapes,
-            127, 127, "images/sprites/dog/NE_walking.png", herdem_engine->dog_c_shapes,
             108, 71, "images/sprites/dog/E_walking.png", herdem_engine->dog_c_shapes,
-            127, 127, "images/sprites/dog/SE_walking.png", herdem_engine->dog_c_shapes,
-            71, 108, "images/sprites/dog/S_walking.png", herdem_engine->dog_c_shapes,
-            127, 127, "images/sprites/dog/SW_walking.png", herdem_engine->dog_c_shapes,
-            108, 71, "images/sprites/dog/W_walking.png", herdem_engine->dog_c_shapes,
-
+            127, 127, "images/sprites/dog/NE_walking.png", herdem_engine->dog_c_shapes,
+            71, 108, "images/sprites/dog/N_walking.png", herdem_engine->dog_c_shapes,
             127, 127, "images/sprites/dog/NW_walking.png", herdem_engine->dog_c_shapes,
-            71, 108, "images/sprites/dog/N_still.png", herdem_engine->dog_c_shapes,
-            127, 127, "images/sprites/dog/NE_still.png", herdem_engine->dog_c_shapes,
+            108, 71, "images/sprites/dog/W_walking.png", herdem_engine->dog_c_shapes,
+            127, 127, "images/sprites/dog/SW_walking.png", herdem_engine->dog_c_shapes,
+            71, 108, "images/sprites/dog/S_walking.png", herdem_engine->dog_c_shapes,
+            127, 127, "images/sprites/dog/SE_walking.png", herdem_engine->dog_c_shapes,
+
             108, 71, "images/sprites/dog/E_still.png", herdem_engine->dog_c_shapes,
-            127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes,
-            71, 108, "images/sprites/dog/S_still.png", herdem_engine->dog_c_shapes,
+            127, 127, "images/sprites/dog/NE_still.png", herdem_engine->dog_c_shapes,
+            71, 108, "images/sprites/dog/N_still.png", herdem_engine->dog_c_shapes,
+            127, 127, "images/sprites/dog/NW_still.png", herdem_engine->dog_c_shapes,
+            108, 71, "images/sprites/dog/W_still.png", herdem_engine->dog_c_shapes,
             127, 127, "images/sprites/dog/SW_still.png", herdem_engine->dog_c_shapes,
-            108, 71, "images/sprites/dog/W_still.png", herdem_engine->dog_c_shapes
+            71, 108, "images/sprites/dog/S_still.png", herdem_engine->dog_c_shapes,
+            127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes
             );
 
     dog->normal_speed = 2;
@@ -510,8 +532,9 @@ int main(void)
     sheep = new_herdem_sheep();
     sheep->actor.x = sheep->actor.px = 100;
     sheep->actor.y = sheep->actor.py = 100;
-    sheep->actor.vx = 1;
+    sheep->actor.vx = 0;
     sheep->actor.vy = 0;
+
 
     jty_eng_add_a_a_handler(DOGS, SHEEP, dog_sheep_collision_handler);
 
