@@ -97,6 +97,7 @@ void sheep_wall_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *
 
 void dog_wall_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *c_info)
 {
+    fprintf(stderr, "%c\n", tile_type);
     a->x -= c_info->normal.x * (c_info->penetration + 1);
     a->y -= c_info->normal.y * (c_info->penetration + 1);
 }
@@ -483,18 +484,18 @@ int main(void)
                 "abcdefg"
                 "hijklmn"
                 "opqrstu",
-                "ibbbbbbbbbbbibbbbbbbbbbbc"
+                "abbbbbbbbbbbbbbbbbbbbbbbc"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiij"
+                "hiiiiiiiiiiiiiiiiiiiiiiir"
+                "hiiiiiiiiiiiiiiiiiiiiiiii"
+                "hiiiiiiiiiiiiiiiiiiiiiiii"
+                "hiiiiiiiiiiiiiiiiiiiiiiii"
+                "hiiiiiiiiiiiiiiiiiiiiiiii"
+                "hiiiiiiiiiiiiiiiiiiiiiiik"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
@@ -508,10 +509,10 @@ int main(void)
                 "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
-                "baaaaaaaaaaaaaaaaaaaaaaab"
-                "baaaaaaaaaaaaaaaaaaaaaaab"
-                "baaaaaaaaaaaaaaaaaaaaaaab"
-                "baaaaaaaaaaaaaaaaaaaaaaab"
+                "baaaaaaaaaaaaaaaaaaaaaaac"
+                "baaaaaaaaaaaaaaaaaaaaaaac"
+                "baaaaaaaaaaaaaaaaaaaaaaac"
+                "baaaaaaaaaaaaaaaaaaaaaaac"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaab"

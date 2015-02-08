@@ -846,7 +846,10 @@ int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_in
     c_shape = jty_actor_get_c_shape(actor);
 
     if (c_shape.type == JTY_RECT) {
-        return jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, c_info);
+        if (jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, c_info)) {
+            fprintf(stderr, "Collission with %d %d!!!\n", i, j);
+            return jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, c_info);
+        }
     }
     return 0;
 }
@@ -923,9 +926,18 @@ void jty_actor_iterate(jty_actor *actor)
     jty_c_info c_info;
 
     i_min = (actor->x - curr_sprite->w / 2.) / jty_engine->map->tw;
+    if (i_min <= 0)
+        i_min = 0;
     i_max = (actor->x + curr_sprite->w / 2.) / jty_engine->map->tw;
+    if(i_max >= jty_engine->map->w)
+        i_max = jty_engine->map->w - 1;
     j_min = (actor->y - curr_sprite->h / 2.) / jty_engine->map->th;
+    if (j_min <= 0)
+        j_min = 0;
     j_max = (actor->y + curr_sprite->h / 2.) / jty_engine->map->th;
+    if(j_max >= jty_engine->map->h)
+        j_max = jty_engine->map->h -1;
+
 
 #ifdef DEBUG_MODE
     if (jty_engine->print_messages) {
