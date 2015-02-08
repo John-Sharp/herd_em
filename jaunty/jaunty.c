@@ -874,19 +874,19 @@ void process_map_collision(
         (void *)jty_engine->map->c_map;
 
     if (c_info->normal.x == -1
-            && i > 0 && strchr(mhl->tiles, c_map[j][i-1])) {
+            && i > 0 && strchr(mhl->tiles, c_map[j][i+1])) {
         return;
     }
     if (c_info->normal.x == 1 &&
-            i < jty_engine->map->w - 1 && strchr(mhl->tiles, c_map[j][i+1])) {
+            i < jty_engine->map->w - 1 && strchr(mhl->tiles, c_map[j][i-1])) {
         return;
     }
     if (c_info->normal.y == -1 &&
-            j > 0 && strchr(mhl->tiles, c_map[j -1][i])) {
+            j > 0 && strchr(mhl->tiles, c_map[j+1][i])) {
         return;
     }
     if (c_info->normal.y == 1 &&
-            j < jty_engine->map->h - 1 && strchr(mhl->tiles, c_map[j + 1][i])) {
+            j < jty_engine->map->h - 1 && strchr(mhl->tiles, c_map[j-1][i])) {
         return;
     }
 
