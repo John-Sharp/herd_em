@@ -53,16 +53,6 @@ union jty_entity {
 };
 
 typedef void (*jty_i_handler)(struct jty_actor *actor);
-typedef void (*jty_m_handler)(
-        jty_actor *actor,
-        int i,
-        int j,
-        char tile_type,
-        jty_c_info *c_info);
-typedef void (*jty_a_handler)(
-        jty_actor *actor1,
-        jty_actor *actor2,
-        jty_c_info *c_info);
 
 typedef void (*jty_c_handler) (jty_c_info *c_info);
 
@@ -301,7 +291,7 @@ void jty_eng_add_a_a_handler(unsigned int groupnum1,
 /* Removes the actor-actor handler */
 void jty_eng_rm_a_a_handler(unsigned int groupnum1,
         unsigned int groupnum2,
-        jty_a_handler actor_handler);
+        jty_c_handler handler);
 
 /* Frees all resources allocated to the engine */
 void jty_eng_free(void);
