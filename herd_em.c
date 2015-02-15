@@ -114,6 +114,9 @@ void dog_sheep_collision_handler(jty_c_info *c_info)
     sheep->x += c_info->normal.x * c_info->penetration;
     sheep->y += c_info->normal.y * c_info->penetration;
 
+    dog->x -= c_info->normal.x * c_info->penetration;
+    dog->y -= c_info->normal.y * c_info->penetration;
+
     if (c_info->normal.x)
         v_rel.x *= -1;
     if (c_info->normal.y)
@@ -438,7 +441,7 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
             127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes
             );
 
-    double max_speed = 10.8;
+    double max_speed = 50.8;
     double half_life = 40;
 
     dog->drag = 1 / half_life *  0.6931471805599453;

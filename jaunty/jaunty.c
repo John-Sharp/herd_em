@@ -11,7 +11,7 @@
 #define mkp2(a) (int)powf(2.0, ceilf(logf((float)a)/logf(2.0)))
 
 enum {
-    MAX_C_PROCESSING_LOOPS = 10
+    MAX_C_PROCESSING_LOOPS = 100
 };
 
 /* Utility function to get a pixel at ('x', 'y') from a surface */
@@ -732,10 +732,16 @@ jty_shape jty_actor_get_c_shape(jty_actor *actor)
  * been between the x or y sides of the rect.
  * 1 is returned if rectangles collide, 0 if they don't.
  */
+typedef enum r_r_detect_dn {
+    R_R_DETECT_BOTH,
+    R_R_DETECT_X,
+    R_R_DETECT_Y
+} r_r_detect_dn;
 int jty_rect_rect_detect(
         jty_shape *rect1,
         jty_shape *rect2,
         jty_vector v_rel,
+        r_r_detect_dn check_in_direction,
         double *t,
         jty_c_info *c_info)
 {
@@ -782,6 +788,9 @@ int jty_rect_rect_detect(
 
     if (t_x < 0 || v_rel.x == 0) {
         t_x = INFINITY;
+        if (check_in_direction == R_R_DETECT_X) {
+            return 0;
+        }
     }
     
     if (overlap_y.a1_offset == 0) {
@@ -806,6 +815,9 @@ int jty_rect_rect_detect(
 
     if (t_y < 0 || v_rel.y == 0) {
         t_y = INFINITY;
+        if (check_in_direction == R_R_DETECT_Y) {
+            return 0;
+        }
     }
 
     if (fabs(v_rel.x) < 0.01 && fabs(v_rel.y) < 0.01) {
@@ -815,7 +827,10 @@ int jty_rect_rect_detect(
         return 1;
     }
 
-    if (t_x < t_y) {
+    if (
+        (check_in_direction == R_R_DETECT_BOTH && t_x < t_y) ||
+        (check_in_direction == R_R_DETECT_X)
+       ) {
         *t = t_x;
         c_info->normal.x = normal.x;
         c_info->normal.y = 0;
@@ -837,7 +852,6 @@ int jty_rect_rect_detect(
     c_info->normal.x = 0;
     c_info->normal.y = normal.y;
     c_info->penetration = d_y;
-
 #ifdef DEBUG_MODE
        fprintf(stderr, "vrel: (%f, %f)\n", v_rel.x, v_rel.y);
        fprintf(stderr, "t's: (%f, %f)\n", t_x, t_y);
@@ -867,6 +881,7 @@ int jty_actor_map_tile_c_detect(
         jty_actor *actor,
         int i,
         int j,
+        r_r_detect_dn check_in_direction,
         double *t,
         jty_c_info *c_info)
 {
@@ -877,18 +892,20 @@ int jty_actor_map_tile_c_detect(
             map->tw,
             map->th);
     jty_vector v_rel = {.x = actor->pvx, .y = actor->pvy};
+    int collided;
 
     c_shape = jty_actor_get_c_shape(actor);
 
     if (c_shape.type == JTY_RECT) {
-        if (jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, t, c_info)) {
+        if ((collided = jty_rect_rect_detect(
+                        &c_shape,
+                        &tile_rect,
+                        v_rel,
+                        check_in_direction,
+                        t,
+                        c_info))) {
             fprintf(stderr, "Collission with %d %d!!!\n", i, j);
-            return jty_rect_rect_detect(
-                    &c_shape,
-                    &tile_rect,
-                    v_rel,
-                    t,
-                    c_info);
+            return collided;
         }
     }
     return 0;
@@ -916,33 +933,52 @@ int set_map_handler(
 {
     unsigned char (*c_map)[jty_engine->map->w] =
         (void *)jty_engine->map->c_map;
+    r_r_detect_dn extra_check_dn = R_R_DETECT_BOTH;
 
     if (c_info->normal.x == -1
             && i > 0 && strchr(mhl->tiles, c_map[j][i+1])) {
-        return 0;
+        extra_check_dn = R_R_DETECT_Y;
     }
     if (c_info->normal.x == 1 &&
             i < jty_engine->map->w - 1 && strchr(mhl->tiles, c_map[j][i-1])) {
-        return 0;
+        extra_check_dn = R_R_DETECT_Y;
     }
     if (c_info->normal.y == -1 &&
             j > 0 && strchr(mhl->tiles, c_map[j+1][i])) {
-        return 0;
+        extra_check_dn = R_R_DETECT_X;
     }
     if (c_info->normal.y == 1 &&
             j < jty_engine->map->h - 1 && strchr(mhl->tiles, c_map[j-1][i])) {
-        return 0;
+        extra_check_dn = R_R_DETECT_X;
     }
 
     c_info->e1.actor = actor;
     c_info->e2.tile = jty_engine->map->w * j + i;
 
-    if (*t > *t_max) {
-        *t_max = *t;
-        *c_info_max = *c_info;
-        *handler_max = mhl->handler;
+    if (extra_check_dn == R_R_DETECT_BOTH) {
+        if (*t > *t_max) {
+            *t_max = *t;
+            *c_info_max = *c_info;
+            *handler_max = mhl->handler;
+        }
+        return 1;
     }
-    return 1;
+
+    if (jty_actor_map_tile_c_detect(
+                actor,
+                i,
+                j,
+                extra_check_dn,
+                t,
+                c_info)) {
+        if (*t > *t_max) {
+            *t_max = *t;
+            *c_info_max = *c_info;
+            *handler_max = mhl->handler;
+        }
+        return 1;
+    }
+    return 0;
 }
 
 void jty_actor_iterate(jty_actor *actor)
@@ -1126,7 +1162,13 @@ int jty_actor_actor_c_detect(
     jty_shape c_shape2 = jty_actor_get_c_shape(a2);
 
     if (c_shape1.type == JTY_RECT && c_shape2.type == JTY_RECT) {
-        return jty_rect_rect_detect(&c_shape1, &c_shape2, v_rel, t, c_info);
+        return jty_rect_rect_detect(
+                &c_shape1,
+                &c_shape2,
+                v_rel,
+                R_R_DETECT_BOTH,
+                t,
+                c_info);
     }
 
     return 0;
@@ -1186,6 +1228,7 @@ void find_most_ancient_tile_collision(
                                     actor,
                                     i,
                                     j,
+                                    R_R_DETECT_BOTH,
                                     &t,
                                     &c_info)) {
                             set_map_handler(
@@ -1292,7 +1335,8 @@ void process_collisions()
     int i;
 
 
-    for (i = 0; i <= MAX_C_PROCESSING_LOOPS; i++) {
+    //for (i = 0; i <= MAX_C_PROCESSING_LOOPS; i++) {
+    for(i=0;;i++){
         t_max = -1;
         find_most_ancient_collision(&handler_max, &t_max, &c_info_max);
 
