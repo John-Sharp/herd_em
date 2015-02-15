@@ -39,6 +39,18 @@ typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_map_handle_ls jty_map_handle_ls;
 typedef struct jty_actor_handle_ls jty_actor_handle_ls;
 typedef struct jty_c_info jty_c_info; /* Describes collision information */
+typedef int jty_tile; /* Just the index of the member of the c_map array
+                         that is this tile. From this number the properties
+                         of the tile (position, type etc) can be retrieved
+                         through helper functions */
+
+typedef union jty_entity jty_entity; /* Generic game object, can represent
+                                        either an actor or a tile */
+
+union jty_entity {
+    jty_actor *actor;
+    jty_tile tile;
+};
 
 typedef void (*jty_i_handler)(struct jty_actor *actor);
 typedef void (*jty_m_handler)(
@@ -51,6 +63,9 @@ typedef void (*jty_a_handler)(
         jty_actor *actor1,
         jty_actor *actor2,
         jty_c_info *c_info);
+
+typedef void (*jty_c_handler) (jty_c_info *c_info);
+
 
 typedef struct jty_overlap_l jty_overlap_l;
 typedef struct jty_overlap jty_overlap;
@@ -78,6 +93,8 @@ struct jty_vector {
 #define jty_vector_mag_sq(v) (pow(v.x, 2) + pow(v.y, 2))
 
 struct jty_c_info {
+    jty_entity e1; /* Entities that have collided */
+    jty_entity e2;
     jty_vector normal; /* Vector describing normal of the collision */
     float penetration; /* Distance of penetration */
 };
@@ -190,8 +207,8 @@ struct jty_actor_handle_ls{
                                     actor collision handler as the 
                                     first (has value 1) or second
                                     argument? (has value 2) */
-    jty_a_handler actor_handler; /* Pointer to the actor collision handler
-                                    function */
+    jty_c_handler handler; /* Pointer to the collision handler
+                              function */
 };
 
 struct jty_eng{
@@ -279,7 +296,7 @@ void jty_actor_rm_m_handler(jty_actor *actor,
  * with 'groupnum2' */
 void jty_eng_add_a_a_handler(unsigned int groupnum1,
         unsigned int groupnum2,
-        jty_a_handler actor_handler);
+        jty_c_handler handler);
 
 /* Removes the actor-actor handler */
 void jty_eng_rm_a_a_handler(unsigned int groupnum1,

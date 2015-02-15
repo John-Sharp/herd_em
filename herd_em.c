@@ -102,8 +102,11 @@ void dog_wall_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *c_
     a->y -= c_info->normal.y * (c_info->penetration + 1);
 }
 
-void dog_sheep_collision_handler(jty_actor *dog, jty_actor *sheep, jty_c_info *c_info)
+void dog_sheep_collision_handler(jty_c_info *c_info)
 {
+    jty_actor *dog = c_info->e1.actor;
+    jty_actor *sheep = c_info->e2.actor;
+
     jty_vector v_rel = {sheep->vx - dog->vx, sheep->vy - dog->vy};
     sheep->x += c_info->normal.x * c_info->penetration;
     sheep->y += c_info->normal.y * c_info->penetration;
@@ -432,7 +435,7 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
             127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes
             );
 
-    double max_speed = 1.8;
+    double max_speed = 50.8;
     double half_life = 40;
 
     dog->drag = 1 / half_life *  0.6931471805599453;

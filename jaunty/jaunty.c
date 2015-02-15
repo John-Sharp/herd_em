@@ -748,7 +748,6 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
             &overlap_y) == 0
        )
     {
-
         return 0;
     }
 
@@ -756,10 +755,20 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
         normal.x = -1;
         d_x = rect2->w - overlap_x.a2_offset;
         t_x = d_x / v_rel.x * normal.x;
+        if (t_x < 0)  {
+            normal.x = 1;
+            d_x = rect1->w + rect2->w - overlap_x.a2_offset;
+            t_x = d_x / v_rel.x * normal.x;
+        }
     } else { /* a2_offset == 0 */
         normal.x = 1;
         d_x = rect1->w - overlap_x.a1_offset;
         t_x = d_x / v_rel.x * normal.x;
+        if (t_x < 0)  {
+            normal.x = -1;
+            d_x = rect1->w + rect2->w - overlap_x.a1_offset;
+            t_x = d_x / v_rel.x * normal.x;
+        }
     }
 
     if (t_x < 0 || v_rel.x == 0) {
@@ -770,10 +779,20 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
         normal.y = -1;
         d_y = rect2->h - overlap_y.a2_offset;
         t_y = d_y / v_rel.y * normal.y;
+        if (t_y < 0) {
+            normal.y = 1;
+            d_y = rect2->h + rect1->h - overlap_y.a2_offset;
+            t_y = d_y / v_rel.y * normal.y;
+        }
     } else { /* a2_offset == 0 */
         normal.y = 1;
         d_y = rect1->h - overlap_y.a1_offset;
         t_y = d_y / v_rel.y * normal.y;
+        if (t_y < 0) {
+            normal.y = -1;
+            d_y = rect2->h + rect1->h - overlap_y.a1_offset;
+            t_y = d_y / v_rel.y * normal.y;
+        }
     }
 
     if (t_y < 0 || v_rel.y == 0) {
@@ -1058,7 +1077,7 @@ void jty_actor_rm_m_handler(jty_actor *actor,
 jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
         unsigned int order,
         unsigned int groupnum,
-        jty_a_handler actor_handler)
+        jty_c_handler handler)
 {
     jty_actor_handle_ls *hp;
 
@@ -1072,7 +1091,7 @@ jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
 
     hp->groupnum = groupnum;
     hp->order = order;
-    hp->actor_handler = actor_handler;
+    hp->handler = handler;
     hp->next = actor->a_h_ls;
 
     return hp;
@@ -1081,17 +1100,17 @@ jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
 void jty_actor_add_a_handler(jty_actor *actor,
         unsigned int order,
         unsigned int groupnum,
-        jty_a_handler actor_handler)
+        jty_c_handler handler)
 {
     actor->a_h_ls = jty_actor_add_a_handler_int(actor,
             order,
             groupnum,
-            actor_handler);
+            handler);
 }
 
 void jty_eng_add_a_a_handler(unsigned int groupnum1,
         unsigned int groupnum2,
-        jty_a_handler actor_handler)
+        jty_c_handler handler)
 {
     jty_actor_ls *p_actor_ls;
     jty_actor *actor;
@@ -1102,9 +1121,9 @@ void jty_eng_add_a_a_handler(unsigned int groupnum1,
             if(actor->groupnum & groupnum2) {
                 groupnum2 |= groupnum1;
             }
-            jty_actor_add_a_handler(actor, 1, groupnum2, actor_handler);
+            jty_actor_add_a_handler(actor, 1, groupnum2, handler);
         }else if(actor->groupnum & groupnum2) {
-            jty_actor_add_a_handler(actor, 2, groupnum1, actor_handler);
+            jty_actor_add_a_handler(actor, 2, groupnum1, handler);
         }
     }
 }
@@ -1156,42 +1175,29 @@ void call_actor_handler(
         jty_c_info *c_info)
 {
     if (ahls_ptr->order == 1) {
-        ahls_ptr->actor_handler(a1, a2, c_info);
+        c_info->e1.actor = a1;
+        c_info->e2.actor = a2;
+        ahls_ptr->handler(c_info);
     } else if (ahls_ptr->order == 2) {
+        c_info->e1.actor = a2;
+        c_info->e2.actor = a1;
         c_info->normal.x *= -1;
         c_info->normal.y *= -1;
-        ahls_ptr->actor_handler(a2, a1, c_info);
+        ahls_ptr->handler(c_info);
     } else {
         abort();
     }
 }
 
-void jty_iterate()
+void process_collisions()
 {
     jty_actor_ls *pg, *ph;
     jty_actor *a1, *a2;
-    jty_actor_handle_ls *pahls;
     jty_c_info c_info;
+    jty_actor_handle_ls *pahls;
 
-#ifdef DEBUG_MODE
-    static double last_t = 0;
-    double curr_t;
-
-    curr_t = SDL_GetTicks();
-    
-    if( curr_t - last_t >= POLL_TIME * 1000){
-        jty_engine->print_messages = 1;
-        last_t = curr_t;
-    }else
-        jty_engine->print_messages = 0;
-
-#endif
-
-    /* Iterate each actor */
     for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
-        jty_actor_iterate(pg->actor);
-
-//        /* Check for collision with any other actor */
+        /* Check for collision with any other actor */
         for(ph = pg->next; ph != NULL; ph = ph->next){
             a1 = pg->actor;
             a2 = ph->actor;
@@ -1214,6 +1220,38 @@ void jty_iterate()
 
     return;
 }
+
+
+
+void jty_iterate()
+{
+    jty_actor_ls *pg;
+
+#ifdef DEBUG_MODE
+    static double last_t = 0;
+    double curr_t;
+
+    curr_t = SDL_GetTicks();
+    
+    if( curr_t - last_t >= POLL_TIME * 1000){
+        jty_engine->print_messages = 1;
+        last_t = curr_t;
+    }else
+        jty_engine->print_messages = 0;
+
+#endif
+
+    /* Iterate each actor */
+    for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
+        jty_actor_iterate(pg->actor);
+    }
+
+    process_collisions();
+
+    return;
+}
+
+
 
 jty_actor_ls *jty_actor_ls_rm(jty_actor_ls *ls, jty_actor *actor)
 {
