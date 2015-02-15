@@ -930,69 +930,6 @@ void jty_actor_iterate(jty_actor *actor)
         pg->i_handler(actor);
     }
 
-    /* 
-     * Find which tiles are colliding with
-     * this actor's bounding box 
-     *
-     */
-    int i_min, i_max, j_min, j_max;
-    int i, j, k;
-    jty_map_handle_ls *mhl;
-    char tile_type;
-    unsigned char (*c_map)[jty_engine->map->w] =
-        (void *)jty_engine->map->c_map;
-    jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
-    jty_c_info c_info;
-
-    i_min = (actor->x - curr_sprite->w / 2.) / jty_engine->map->tw;
-    if (i_min <= 0)
-        i_min = 0;
-    i_max = (actor->x + curr_sprite->w / 2.) / jty_engine->map->tw;
-    if(i_max >= jty_engine->map->w)
-        i_max = jty_engine->map->w - 1;
-    j_min = (actor->y - curr_sprite->h / 2.) / jty_engine->map->th;
-    if (j_min <= 0)
-        j_min = 0;
-    j_max = (actor->y + curr_sprite->h / 2.) / jty_engine->map->th;
-    if(j_max >= jty_engine->map->h)
-        j_max = jty_engine->map->h -1;
-
-
-#ifdef DEBUG_MODE
-    if (jty_engine->print_messages) {
-        fprintf(stderr, "Tiles between %d <= i <= %d"
-                " and %d <= j <= %d collided with by actor %d\n",
-                i_min, i_max, j_min, j_max, actor->uid);
-    }
-#endif
-
-    /* Iterate through the map-handlers */
-    for(j = j_min; j <= j_max; j++)
-        for(i = i_min; i <= i_max; i++){
-            for(mhl = actor->m_h_ls; mhl != NULL; mhl = mhl->next) {
-                k = 0;
-                while((tile_type = mhl->tiles[k])) {
-                    if(tile_type == c_map[j][i]) {
-                        if(jty_actor_map_tile_c_detect(
-                                    actor,
-                                    i,
-                                    j,
-                                    &c_info)) {
-                            process_map_collision(
-                                    mhl,
-                                    actor,
-                                    i,
-                                    j,
-                                    tile_type,
-                                    &c_info);
-                        }
-                        break;
-                    }
-                    k++;
-                }
-            }
-        }
-
     return;
 }
 
@@ -1189,6 +1126,74 @@ void call_actor_handler(
     }
 }
 
+void process_tile_collisions(jty_actor *actor)
+{
+    /* 
+     * Find which tiles are colliding with
+     * this actor's bounding box 
+     *
+     */
+    int i_min, i_max, j_min, j_max;
+    int i, j, k;
+    jty_map_handle_ls *mhl;
+    char tile_type;
+    unsigned char (*c_map)[jty_engine->map->w] =
+        (void *)jty_engine->map->c_map;
+    jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
+    jty_c_info c_info;
+
+    i_min = (actor->x - curr_sprite->w / 2.) / jty_engine->map->tw;
+    if (i_min <= 0)
+        i_min = 0;
+    i_max = (actor->x + curr_sprite->w / 2.) / jty_engine->map->tw;
+    if(i_max >= jty_engine->map->w)
+        i_max = jty_engine->map->w - 1;
+    j_min = (actor->y - curr_sprite->h / 2.) / jty_engine->map->th;
+    if (j_min <= 0)
+        j_min = 0;
+    j_max = (actor->y + curr_sprite->h / 2.) / jty_engine->map->th;
+    if(j_max >= jty_engine->map->h)
+        j_max = jty_engine->map->h -1;
+
+
+#ifdef DEBUG_MODE
+    if (jty_engine->print_messages) {
+        fprintf(stderr, "Tiles between %d <= i <= %d"
+                " and %d <= j <= %d collided with by actor %d\n",
+                i_min, i_max, j_min, j_max, actor->uid);
+    }
+#endif
+
+    /* Iterate through the map-handlers */
+    for(j = j_min; j <= j_max; j++)
+        for(i = i_min; i <= i_max; i++){
+            for(mhl = actor->m_h_ls; mhl != NULL; mhl = mhl->next) {
+                k = 0;
+                while((tile_type = mhl->tiles[k])) {
+                    if(tile_type == c_map[j][i]) {
+                        if(jty_actor_map_tile_c_detect(
+                                    actor,
+                                    i,
+                                    j,
+                                    &c_info)) {
+                            process_map_collision(
+                                    mhl,
+                                    actor,
+                                    i,
+                                    j,
+                                    tile_type,
+                                    &c_info);
+                        }
+                        break;
+                    }
+                    k++;
+                }
+            }
+        }
+
+    return;
+}
+
 void process_collisions()
 {
     jty_actor_ls *pg, *ph;
@@ -1197,6 +1202,8 @@ void process_collisions()
     jty_actor_handle_ls *pahls;
 
     for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
+        process_tile_collisions(pg->actor);
+
         /* Check for collision with any other actor */
         for(ph = pg->next; ph != NULL; ph = ph->next){
             a1 = pg->actor;
