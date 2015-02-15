@@ -10,6 +10,10 @@
  * that is a whole power of 2 (rounding up) */ 
 #define mkp2(a) (int)powf(2.0, ceilf(logf((float)a)/logf(2.0)))
 
+enum {
+    MAX_C_PROCESSING_LOOPS = 10
+};
+
 /* Utility function to get a pixel at ('x', 'y') from a surface */
 Uint32 get_pixel(SDL_Surface *surface, int x, int y)
 {
@@ -728,13 +732,18 @@ jty_shape jty_actor_get_c_shape(jty_actor *actor)
  * been between the x or y sides of the rect.
  * 1 is returned if rectangles collide, 0 if they don't.
  */
-int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, jty_c_info *c_info)
+int jty_rect_rect_detect(
+        jty_shape *rect1,
+        jty_shape *rect2,
+        jty_vector v_rel,
+        double *t,
+        jty_c_info *c_info)
 {
     struct jty_overlap_l overlap_x, overlap_y;
-    float t_x, t_y; /* Time before current time that rectangles
+    double t_x, t_y; /* Time before current time that rectangles
                        would have first collided in the x and 
                        y directions, respectively */
-    float d_x, d_y; /* Distance to travel to get out of collision */
+    double d_x, d_y; /* Distance to travel to get out of collision */
     jty_vector normal;
 
     if (
@@ -807,6 +816,7 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
     }
 
     if (t_x < t_y) {
+        *t = t_x;
         c_info->normal.x = normal.x;
         c_info->normal.y = 0;
         c_info->penetration = d_x;
@@ -823,6 +833,7 @@ int jty_rect_rect_detect(jty_shape *rect1, jty_shape *rect2, jty_vector v_rel, j
         return 1;
     }
 
+    *t = t_y;
     c_info->normal.x = 0;
     c_info->normal.y = normal.y;
     c_info->penetration = d_y;
@@ -852,7 +863,12 @@ jty_shape jty_new_shape_rect(float x, float y, float w, float h)
     return rect;
 }
 
-int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_info)
+int jty_actor_map_tile_c_detect(
+        jty_actor *actor,
+        int i,
+        int j,
+        double *t,
+        jty_c_info *c_info)
 {
     jty_shape c_shape;
     jty_map *map = jty_engine->map;
@@ -865,9 +881,14 @@ int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_in
     c_shape = jty_actor_get_c_shape(actor);
 
     if (c_shape.type == JTY_RECT) {
-        if (jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, c_info)) {
+        if (jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, t, c_info)) {
             fprintf(stderr, "Collission with %d %d!!!\n", i, j);
-            return jty_rect_rect_detect(&c_shape, &tile_rect, v_rel, c_info);
+            return jty_rect_rect_detect(
+                    &c_shape,
+                    &tile_rect,
+                    v_rel,
+                    t,
+                    c_info);
         }
     }
     return 0;
@@ -881,12 +902,16 @@ int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_in
  * stuck when it moves up the side of a set of tiles that
  * are contiguous 
  */
-void call_map_handler(
+int set_map_handler(
         jty_map_handle_ls *mhl,
         jty_actor *actor,
         int i,
         int j,
         char tile_type,
+        jty_c_handler *handler_max,
+        double *t_max,
+        jty_c_info *c_info_max,
+        double *t,
         jty_c_info *c_info)
 {
     unsigned char (*c_map)[jty_engine->map->w] =
@@ -894,25 +919,30 @@ void call_map_handler(
 
     if (c_info->normal.x == -1
             && i > 0 && strchr(mhl->tiles, c_map[j][i+1])) {
-        return;
+        return 0;
     }
     if (c_info->normal.x == 1 &&
             i < jty_engine->map->w - 1 && strchr(mhl->tiles, c_map[j][i-1])) {
-        return;
+        return 0;
     }
     if (c_info->normal.y == -1 &&
             j > 0 && strchr(mhl->tiles, c_map[j+1][i])) {
-        return;
+        return 0;
     }
     if (c_info->normal.y == 1 &&
             j < jty_engine->map->h - 1 && strchr(mhl->tiles, c_map[j-1][i])) {
-        return;
+        return 0;
     }
 
     c_info->e1.actor = actor;
     c_info->e2.tile = jty_engine->map->w * j + i;
 
-    mhl->handler(c_info);
+    if (*t > *t_max) {
+        *t_max = *t;
+        *c_info_max = *c_info;
+        *handler_max = mhl->handler;
+    }
+    return 1;
 }
 
 void jty_actor_iterate(jty_actor *actor)
@@ -1086,6 +1116,7 @@ void jty_paint(void)
 int jty_actor_actor_c_detect(
         jty_actor *a1,
         jty_actor *a2,
+        double *t,
         jty_c_info *c_info)
 {
     jty_vector v_rel = {
@@ -1095,41 +1126,17 @@ int jty_actor_actor_c_detect(
     jty_shape c_shape2 = jty_actor_get_c_shape(a2);
 
     if (c_shape1.type == JTY_RECT && c_shape2.type == JTY_RECT) {
-        return jty_rect_rect_detect(&c_shape1, &c_shape2, v_rel, c_info);
+        return jty_rect_rect_detect(&c_shape1, &c_shape2, v_rel, t, c_info);
     }
 
     return 0;
 }
 
-/**
- * Calls actor collision handler referred to by the actor 
- * handler list node, `ahls_ptr`, passing
- * actors pointed to by `a1` and `a2` to `ahp` in the order
- * intended by `ahp` and providing any corrections to the 
- * collision info pointed to by `c_info` as necessary
- */
-void call_actor_handler(
-        jty_actor_handle_ls *ahls_ptr,
-        jty_actor *a1,
-        jty_actor *a2,
-        jty_c_info *c_info)
-{
-    if (ahls_ptr->order == 1) {
-        c_info->e1.actor = a1;
-        c_info->e2.actor = a2;
-        ahls_ptr->handler(c_info);
-    } else if (ahls_ptr->order == 2) {
-        c_info->e1.actor = a2;
-        c_info->e2.actor = a1;
-        c_info->normal.x *= -1;
-        c_info->normal.y *= -1;
-        ahls_ptr->handler(c_info);
-    } else {
-        abort();
-    }
-}
-
-void process_tile_collisions(jty_actor *actor)
+void find_most_ancient_tile_collision(
+        jty_actor *actor,
+        jty_c_handler *handler_max,
+        double *t_max,
+        jty_c_info *c_info_max)
 {
     /* 
      * Find which tiles are colliding with
@@ -1143,6 +1150,7 @@ void process_tile_collisions(jty_actor *actor)
     unsigned char (*c_map)[jty_engine->map->w] =
         (void *)jty_engine->map->c_map;
     jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
+    double t;
     jty_c_info c_info;
 
     i_min = (actor->x - curr_sprite->w / 2.) / jty_engine->map->tw;
@@ -1178,13 +1186,18 @@ void process_tile_collisions(jty_actor *actor)
                                     actor,
                                     i,
                                     j,
+                                    &t,
                                     &c_info)) {
-                            call_map_handler(
+                            set_map_handler(
                                     mhl,
                                     actor,
                                     i,
                                     j,
                                     tile_type,
+                                    handler_max,
+                                    t_max,
+                                    c_info_max,
+                                    &t,
                                     &c_info);
                         }
                         break;
@@ -1197,36 +1210,105 @@ void process_tile_collisions(jty_actor *actor)
     return;
 }
 
-void process_collisions()
+int jty_actor_has_appropriate_handler(
+        jty_actor *a,
+        jty_actor *a2,
+        jty_c_handler *handler,
+        jty_c_info *c_info)
+{
+    jty_actor_handle_ls *pahls;
+
+    /* Loop through first colliding actor's collision handlers
+     * to see if any of them apply to group of second actor
+     * in collision */
+
+    for(pahls = a->a_h_ls; pahls != NULL; pahls = pahls->next){
+        fprintf(stderr, "groupnum a1_h: %d\n", pahls->groupnum);
+        fprintf(stderr, "groupnum a2: %d\n", a2->groupnum);
+        if(pahls->groupnum & a2->groupnum) {
+            *handler = pahls->handler;
+            if (pahls->order == 1) {
+                c_info->e1.actor = a;
+                c_info->e2.actor = a2;
+            } else if (pahls->order == 2) {
+                c_info->e1.actor = a2;
+                c_info->e2.actor = a;
+                c_info->normal.x *= -1;
+                c_info->normal.y *= -1;
+            }
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+void find_most_ancient_collision(
+        jty_c_handler *handler_max,
+        double *t_max,
+        jty_c_info *c_info_max)
 {
     jty_actor_ls *pg, *ph;
     jty_actor *a1, *a2;
+    double t = 0;
     jty_c_info c_info;
-    jty_actor_handle_ls *pahls;
+    jty_c_handler handler;
 
     for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
-        process_tile_collisions(pg->actor);
+        find_most_ancient_tile_collision(
+                pg->actor,
+                handler_max,
+                t_max,
+                c_info_max);
 
         /* Check for collision with any other actor */
         for(ph = pg->next; ph != NULL; ph = ph->next){
             a1 = pg->actor;
             a2 = ph->actor;
 
-            if(jty_actor_actor_c_detect(a1, a2, &c_info)){
-                /* Loop through first colliding actor's collision handlers
-                 * to see if any of them apply to group of second actor
-                 * in collision */
-
-                for(pahls = a1->a_h_ls; pahls != NULL; pahls = pahls->next){
-                    fprintf(stderr, "groupnum a1_h: %d\n", pahls->groupnum);
-                    fprintf(stderr, "groupnum a2: %d\n", a2->groupnum);
-                    if(pahls->groupnum & a2->groupnum) {
-                        call_actor_handler(pahls, a1, a2, &c_info);
-                    }
+            if(jty_actor_actor_c_detect(a1, a2, &t, &c_info)){
+                if (
+                    t > *t_max &&
+                    jty_actor_has_appropriate_handler(
+                        a1,
+                        a2,
+                        &handler,
+                        &c_info)
+                ) {
+                    *t_max = t;
+                    *c_info_max = c_info;
+                    *handler_max = handler;
                 }
             }
         }
     }
+}
+
+void process_collisions()
+{
+    jty_c_handler handler_max;
+    jty_c_info c_info_max;
+    double t_max;
+    int i;
+
+
+    for (i = 0; i <= MAX_C_PROCESSING_LOOPS; i++) {
+        t_max = -1;
+        find_most_ancient_collision(&handler_max, &t_max, &c_info_max);
+
+#ifdef DEBUG_MODE
+        if(t_max == -1){
+            fprintf(stderr, "took %d collisions to get resolved\n", i);
+            return;
+        }
+#endif
+
+        handler_max(&c_info_max);
+    }
+
+#ifdef DEBUG_MODE
+    fprintf(stderr, "collisions unresolved!!!\n");
+#endif
 
     return;
 }
