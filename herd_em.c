@@ -83,8 +83,10 @@ void eight_way_direction_change(jty_actor *a)
 
 }
 
-void sheep_wall_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *c_info)
+void sheep_wall_handler(jty_c_info *c_info)
 {
+    jty_actor *a = c_info->e1.actor;
+
     a->x -= c_info->normal.x * (c_info->penetration + 1);
     a->y -= c_info->normal.y * (c_info->penetration + 1);
 
@@ -95,9 +97,10 @@ void sheep_wall_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *
     eight_way_direction_change(a);
 }
 
-void dog_wall_handler(jty_actor *a, int i, int j, char tile_type, jty_c_info *c_info)
+void dog_wall_handler(jty_c_info *c_info)
 {
-    fprintf(stderr, "%c\n", tile_type);
+    jty_actor *a = c_info->e1.actor;
+
     a->x -= c_info->normal.x * (c_info->penetration + 1);
     a->y -= c_info->normal.y * (c_info->penetration + 1);
 }

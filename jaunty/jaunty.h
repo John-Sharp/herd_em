@@ -192,7 +192,7 @@ struct jty_map_handle_ls{ /* A list of map collision handlers */
     jty_map_handle_ls *next;
     char *tiles; /* Array of tiles that this handler should 
                     be fired for */
-    jty_m_handler map_handler;
+    jty_c_handler handler;
                 /* Pointer to the 
                    collision handler
                    function */
@@ -284,12 +284,12 @@ void jty_actor_add_i_handler(jty_actor *actor,
  * The tiles are given as a string in the same way as the map gets specified,
  * and the same key as was is used in the actor's primary map. */
 void jty_actor_add_m_handler(jty_actor *actor,
-                             jty_m_handler map_hander,
+                             jty_c_handler hander,
                              char *tiles);
 
 /* Removes the map handler */
 void jty_actor_rm_m_handler(jty_actor *actor,
-                            jty_m_handler map_handler);
+                            jty_c_handler handler);
 
 /* Add a handler that will get called each time an actor in a group bitwise AND
  * matching with 'groupnum1' collides with an actor in a group bitwises AND matching

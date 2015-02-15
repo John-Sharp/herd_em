@@ -881,7 +881,7 @@ int jty_actor_map_tile_c_detect(jty_actor *actor, int i, int j, jty_c_info *c_in
  * stuck when it moves up the side of a set of tiles that
  * are contiguous 
  */
-void process_map_collision(
+void call_map_handler(
         jty_map_handle_ls *mhl,
         jty_actor *actor,
         int i,
@@ -909,7 +909,10 @@ void process_map_collision(
         return;
     }
 
-    mhl->map_handler(actor, i, j, tile_type, c_info);
+    c_info->e1.actor = actor;
+    c_info->e2.tile = jty_engine->map->w * j + i;
+
+    mhl->handler(c_info);
 }
 
 void jty_actor_iterate(jty_actor *actor)
@@ -934,7 +937,7 @@ void jty_actor_iterate(jty_actor *actor)
 }
 
 static jty_map_handle_ls *jty_actor_add_m_handler_int(jty_actor *actor,
-                                              jty_m_handler map_handler,
+                                              jty_c_handler handler,
                                               char *tiles)
 {
     jty_map_handle_ls *hp;
@@ -957,7 +960,7 @@ static jty_map_handle_ls *jty_actor_add_m_handler_int(jty_actor *actor,
     strcpy(tiles_copy, tiles);
 
     hp->tiles = tiles_copy;
-    hp->map_handler = map_handler;
+    hp->handler = handler;
     hp->next = actor->m_h_ls;
 
 #ifdef DEBUG_MODE
@@ -969,13 +972,13 @@ static jty_map_handle_ls *jty_actor_add_m_handler_int(jty_actor *actor,
 }
 
 void jty_actor_add_m_handler(jty_actor *actor,
-                             jty_m_handler map_handler,
+                             jty_c_handler handler,
                              char *tiles)
 {
 
     actor->m_h_ls = jty_actor_add_m_handler_int(
             actor,
-            map_handler,
+            handler,
             tiles);
 
     return;
@@ -983,30 +986,30 @@ void jty_actor_add_m_handler(jty_actor *actor,
 
 static jty_map_handle_ls *jty_actor_rm_m_handler_int(jty_map_handle_ls *ls,
                                              jty_actor *actor,
-                                             jty_m_handler map_handler)
+                                             jty_c_handler handler)
 {
     if(ls == NULL)
         return NULL;
 
-    if(ls->map_handler == map_handler){
+    if(ls->handler == handler){
         jty_map_handle_ls *p = ls->next;
         free(ls->tiles);
         free(ls);
         return p;
     }
 
-    ls->next = jty_actor_rm_m_handler_int(ls->next, actor, map_handler);
+    ls->next = jty_actor_rm_m_handler_int(ls->next, actor, handler);
     return ls;
 }
 
 void jty_actor_rm_m_handler(jty_actor *actor,
-                            jty_m_handler map_handler)
+                            jty_c_handler handler)
 {
 
     actor->m_h_ls = 
         jty_actor_rm_m_handler_int(actor->m_h_ls,
             actor,
-            map_handler);
+            handler);
 
     return;
 }
@@ -1176,7 +1179,7 @@ void process_tile_collisions(jty_actor *actor)
                                     i,
                                     j,
                                     &c_info)) {
-                            process_map_collision(
+                            call_map_handler(
                                     mhl,
                                     actor,
                                     i,
