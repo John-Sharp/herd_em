@@ -121,6 +121,29 @@ void dog_sheep_collision_handler(jty_c_info *c_info)
     eight_way_direction_change(sheep);
 }
 
+void sheep_sheep_collision_handler(jty_c_info *c_info)
+{
+    jty_actor *sheep1 = c_info->e1.actor;
+    jty_actor *sheep2 = c_info->e2.actor;
+
+    jty_vector v_rel = {sheep2->vx - sheep1->vx, sheep2->vy - sheep1->vy};
+
+    sheep2->x += c_info->normal.x * (c_info->penetration + 1);
+    sheep2->y += c_info->normal.y * (c_info->penetration + 1);
+
+    sheep1->x -= c_info->normal.x * (c_info->penetration + 1);
+    sheep1->y -= c_info->normal.y * (c_info->penetration + 1);
+
+    if (c_info->normal.x)
+        v_rel.x *= -1;
+    if (c_info->normal.y)
+        v_rel.y *= -1;
+
+    sheep1->vx = -1 * 0.5 * v_rel.x;
+    sheep1->vy = -1 * 0.5 * v_rel.y;
+    sheep2->vx = 0.5 * v_rel.x;
+    sheep2->vy = 0.5 * v_rel.y;
+}
 
 typedef enum herdem_player_action {
     HERDEM_MOVE_N = 1,
@@ -571,7 +594,14 @@ int main(void)
     sheep->actor.vx = 0;
     sheep->actor.vy = 0;
 
+    sheep = new_herdem_sheep();
+    sheep->actor.x = sheep->actor.px = 200;
+    sheep->actor.y = sheep->actor.py = 100;
+    sheep->actor.vx = 0;
+    sheep->actor.vy = 0;
 
+
+    jty_eng_add_a_a_handler(SHEEP, SHEEP, sheep_sheep_collision_handler);
     jty_eng_add_a_a_handler(DOGS, SHEEP, dog_sheep_collision_handler);
 
     start_t = SDL_GetTicks();
