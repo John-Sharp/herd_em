@@ -140,7 +140,6 @@ struct jty_actor{       /* A character in the game */
                                   position in fractional frame */
 
     double vx, vy;              /* x and y components of velocity */
-    double pvx, pvy;
     double ax, ay;              /* x and y components of acceleration */
                                    
     jty_sprite **sprites;       /* Sprites of this actor */
@@ -264,7 +263,6 @@ jty_actor *jty_actor_init(
         jty_shape **c_shapes,
         ...
         );
-
 
 /* Add a handler that will get called once each logic frame for the actor */
 void jty_actor_add_i_handler(jty_actor *actor,

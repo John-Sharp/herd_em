@@ -745,7 +745,7 @@ int jty_rect_rect_detect(
         double *t,
         jty_c_info *c_info)
 {
-    struct jty_overlap_l overlap_x, overlap_y;
+    struct jty_overlap overlap;
     double t_x, t_y; /* Time before current time that rectangles
                        would have first collided in the x and 
                        y directions, respectively */
@@ -756,32 +756,32 @@ int jty_rect_rect_detect(
             jty_calc_overlap_l(
             rect1->centre.x - rect1->w/2, rect1->centre.x + rect1->w/2,
             rect2->centre.x - rect2->w/2, rect2->centre.x + rect2->w/2,
-            &overlap_x) == 0 ||
+            &overlap.x) == 0 ||
             jty_calc_overlap_l(
             rect1->centre.y - rect1->h/2, rect1->centre.y + rect1->h/2,
             rect2->centre.y - rect2->h/2, rect2->centre.y + rect2->h/2,
-            &overlap_y) == 0
+            &overlap.y) == 0
        )
     {
         return 0;
     }
 
-    if (overlap_x.a1_offset == 0) {
+    if (overlap.x.a1_offset == 0) {
         normal.x = -1;
-        d_x = rect2->w - overlap_x.a2_offset;
+        d_x = rect2->w - overlap.x.a2_offset;
         t_x = d_x / v_rel.x * normal.x;
         if (t_x < 0)  {
             normal.x = 1;
-            d_x = rect1->w + rect2->w - overlap_x.a2_offset;
+            d_x = rect1->w + rect2->w - overlap.x.a2_offset;
             t_x = d_x / v_rel.x * normal.x;
         }
     } else { /* a2_offset == 0 */
         normal.x = 1;
-        d_x = rect1->w - overlap_x.a1_offset;
+        d_x = rect1->w - overlap.x.a1_offset;
         t_x = d_x / v_rel.x * normal.x;
         if (t_x < 0)  {
             normal.x = -1;
-            d_x = rect1->w + rect2->w - overlap_x.a1_offset;
+            d_x = rect1->w + rect2->w - overlap.x.a1_offset;
             t_x = d_x / v_rel.x * normal.x;
         }
     }
@@ -793,22 +793,22 @@ int jty_rect_rect_detect(
         }
     }
     
-    if (overlap_y.a1_offset == 0) {
+    if (overlap.y.a1_offset == 0) {
         normal.y = -1;
-        d_y = rect2->h - overlap_y.a2_offset;
+        d_y = rect2->h - overlap.y.a2_offset;
         t_y = d_y / v_rel.y * normal.y;
         if (t_y < 0) {
             normal.y = 1;
-            d_y = rect2->h + rect1->h - overlap_y.a2_offset;
+            d_y = rect2->h + rect1->h - overlap.y.a2_offset;
             t_y = d_y / v_rel.y * normal.y;
         }
     } else { /* a2_offset == 0 */
         normal.y = 1;
-        d_y = rect1->h - overlap_y.a1_offset;
+        d_y = rect1->h - overlap.y.a1_offset;
         t_y = d_y / v_rel.y * normal.y;
         if (t_y < 0) {
             normal.y = -1;
-            d_y = rect2->h + rect1->h - overlap_y.a1_offset;
+            d_y = rect2->h + rect1->h - overlap.y.a1_offset;
             t_y = d_y / v_rel.y * normal.y;
         }
     }
@@ -839,7 +839,6 @@ int jty_rect_rect_detect(
 #ifdef DEBUG_MODE
        fprintf(stderr, "vrel: (%f, %f)\n", v_rel.x, v_rel.y);
        fprintf(stderr, "t's: (%f, %f)\n", t_x, t_y);
-       struct jty_overlap overlap = {.x = overlap_x, .y = overlap_y};
        print_overlap(&overlap);
        print_c_info(c_info);
        print_c_shape(rect1);
@@ -855,7 +854,6 @@ int jty_rect_rect_detect(
 #ifdef DEBUG_MODE
        fprintf(stderr, "vrel: (%f, %f)\n", v_rel.x, v_rel.y);
        fprintf(stderr, "t's: (%f, %f)\n", t_x, t_y);
-       struct jty_overlap overlap = {.x = overlap_x, .y = overlap_y};
        print_overlap(&overlap);
        print_c_info(c_info);
        print_c_shape(rect1);
@@ -891,7 +889,8 @@ int jty_actor_map_tile_c_detect(
             (j + 0.5) * map->th,
             map->tw,
             map->th);
-    jty_vector v_rel = {.x = actor->pvx, .y = actor->pvy};
+    jty_vector v_rel = {.x = actor->x - actor->px, .y = actor->y - actor->py};
+
     int collided;
 
     c_shape = jty_actor_get_c_shape(actor);
@@ -985,8 +984,6 @@ void jty_actor_iterate(jty_actor *actor)
 {
     actor->px = actor->x;
     actor->py = actor->y;
-    actor->pvx = actor->vx;
-    actor->pvy = actor->vy;
 
     actor->x += actor->vx;
     actor->y += actor->vy;
@@ -1156,8 +1153,8 @@ int jty_actor_actor_c_detect(
         jty_c_info *c_info)
 {
     jty_vector v_rel = {
-        .x = a1->pvx - a2->pvx,
-        .y = a1->pvy - a2->pvy};
+        .x = (a1->x - a1->px) - (a2->x - a2->px),
+        .y = (a1->y - a1->py) - (a2->y - a2->py)};
     jty_shape c_shape1 = jty_actor_get_c_shape(a1);
     jty_shape c_shape2 = jty_actor_get_c_shape(a2);
 
@@ -1273,6 +1270,7 @@ int jty_actor_has_appropriate_handler(
             if (pahls->order == 1) {
                 c_info->e1.actor = a;
                 c_info->e2.actor = a2;
+
             } else if (pahls->order == 2) {
                 c_info->e1.actor = a2;
                 c_info->e2.actor = a;
@@ -1335,18 +1333,24 @@ void process_collisions()
     int i;
 
 
-    //for (i = 0; i <= MAX_C_PROCESSING_LOOPS; i++) {
-    for(i=0;;i++){
+    for (i = 0; i <= MAX_C_PROCESSING_LOOPS; i++) {
         t_max = -1;
         find_most_ancient_collision(&handler_max, &t_max, &c_info_max);
 
 #ifdef DEBUG_MODE
         if(t_max == -1){
-            fprintf(stderr, "took %d collisions to get resolved\n", i);
+            if (i > 0) {
+                fprintf(stderr, "took %d collisions to get resolved\n", i);
+            }
             return;
         }
 #endif
 
+        if (i == 0) {
+            fprintf(stderr, "starting to process collisions...\n");
+        }
+        fprintf(stderr, "cinfo for collision %d:", i);
+        print_c_info(&c_info_max);
         handler_max(&c_info_max);
     }
 

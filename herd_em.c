@@ -16,6 +16,13 @@ typedef enum herdem_direction{
 
 enum { DOGS = 1, SHEEP = 1<<1 };
 
+/**
+ * Number of frames after first hitting a wall
+ * that sheep is considered to be finished hitting
+ * the wall
+ */
+enum { WALL_RECOVERY_FRAMES = 10 };
+
 
 /**
  * Sets the current sprite of actor `a` so that
@@ -83,20 +90,6 @@ void eight_way_direction_change(jty_actor *a)
 
 }
 
-void sheep_wall_handler(jty_c_info *c_info)
-{
-    jty_actor *a = c_info->e1.actor;
-
-    a->x -= c_info->normal.x * (c_info->penetration + 1);
-    a->y -= c_info->normal.y * (c_info->penetration + 1);
-
-    if (c_info->normal.x)
-        a->vx *= -1;
-    if (c_info->normal.y)
-        a->vy *= -1;
-    eight_way_direction_change(a);
-}
-
 void dog_wall_handler(jty_c_info *c_info)
 {
     jty_actor *a = c_info->e1.actor;
@@ -111,11 +104,12 @@ void dog_sheep_collision_handler(jty_c_info *c_info)
     jty_actor *sheep = c_info->e2.actor;
 
     jty_vector v_rel = {sheep->vx - dog->vx, sheep->vy - dog->vy};
-    sheep->x += c_info->normal.x * c_info->penetration;
-    sheep->y += c_info->normal.y * c_info->penetration;
 
-    dog->x -= c_info->normal.x * c_info->penetration;
-    dog->y -= c_info->normal.y * c_info->penetration;
+    sheep->x += c_info->normal.x * (c_info->penetration + 1);
+    sheep->y += c_info->normal.y * (c_info->penetration + 1);
+
+    dog->x -= c_info->normal.x * (c_info->penetration + 1);
+    dog->y -= c_info->normal.y * (c_info->penetration + 1);
 
     if (c_info->normal.x)
         v_rel.x *= -1;
@@ -307,7 +301,32 @@ typedef struct herdem_sheep {
     jty_actor actor;
     double normal_speed;
     double fear_acceleration;
+    bool panicked;
+    int touching_wall;
 } herdem_sheep;
+
+void sheep_wall_handler(jty_c_info *c_info)
+{
+    jty_actor *a = c_info->e1.actor;
+    herdem_sheep *sheep = (herdem_sheep *)a;
+
+    a->x -= c_info->normal.x * (c_info->penetration + 1);
+    a->y -= c_info->normal.y * (c_info->penetration + 1);
+    sheep->touching_wall = WALL_RECOVERY_FRAMES;
+
+    if (c_info->normal.x)
+        a->vx *= -1;
+    if (c_info->normal.y)
+        a->vy *= -1;
+
+    if (sheep->panicked == true) {
+        if (c_info->normal.x) {
+            a->vx = 0;
+        }else {
+            a->vy = 0;
+        }
+    }
+}
 
 herdem_direction herdem_dog_get_direction(herdem_dog *dog)
 {
@@ -340,6 +359,7 @@ void sheep_iterator(jty_actor *actor)
 
     sheep->actor.ax = 0;
     sheep->actor.ay = 0;
+    sheep->panicked = false;
    
     for (dog_ls = herdem_engine->dogs; dog_ls != NULL; dog_ls = dog_ls->next) {
         dog = (herdem_dog *)(dog_ls->actor);
@@ -349,20 +369,25 @@ void sheep_iterator(jty_actor *actor)
         if (r_rel_mag_sq < pow(dog->scare_radius_max, 2)) {
             sheep->actor.ax += 1 / r_rel_mag_sq * r_rel.x * sheep->fear_acceleration;
             sheep->actor.ay += 1 / r_rel_mag_sq * r_rel.y * sheep->fear_acceleration;
+            sheep->panicked = true;
         }
     }
 
     jty_vector v = {.x = sheep->actor.vx, .y = sheep->actor.vy};
     double sheep_speed = sqrt(jty_vector_mag_sq(v));
     if (sheep_speed == 0) {
+        eight_way_direction_change((jty_actor *)sheep);
         return;
     }
 
     sheep->actor.ax += -1 / sheep_speed * v.x * (sheep_speed - sheep->normal_speed) * 1;
     sheep->actor.ay += -1 / sheep_speed * v.y * (sheep_speed - sheep->normal_speed) * 1;
 
-    eight_way_direction_change((jty_actor *)sheep);
+    if (sheep->touching_wall < 0 || sheep->touching_wall == WALL_RECOVERY_FRAMES) {
+        eight_way_direction_change((jty_actor *)sheep);
+    }
 
+    sheep->touching_wall -= 1;
 }
 
 herdem_sheep *herdem_sheep_init(herdem_sheep *sheep)
@@ -392,6 +417,7 @@ herdem_sheep *herdem_sheep_init(herdem_sheep *sheep)
 
     sheep->normal_speed = 0.9;
     sheep->fear_acceleration = 5;
+    sheep->panicked = false;
 
     jty_actor_add_i_handler((jty_actor *)sheep, animation_handler);
     jty_actor_add_i_handler((jty_actor *)sheep, sheep_iterator);
@@ -441,8 +467,8 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
             127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes
             );
 
-    double max_speed = 50.8;
-    double half_life = 40;
+    double max_speed = 1.0;
+    double half_life = 10;
 
     dog->drag = 1 / half_life *  0.6931471805599453;
     dog->acceleration = max_speed * dog->drag;
