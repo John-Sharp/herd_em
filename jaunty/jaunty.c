@@ -164,7 +164,12 @@ jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h)
 
     jty_engine->map = NULL;
     jty_engine->actors = NULL;
+    jty_engine->a_a_handlers = NULL;
     jty_engine->elapsed_frames = 0;
+
+    jty_engine->set_up_level = NULL;
+    jty_engine->is_level_finished = NULL;
+    jty_engine->clean_up_level = NULL;
     return jty_engine;
 }
 
@@ -516,8 +521,18 @@ static jty_actor *jty_actor_init_int(
     fprintf(stderr, "\nCreating actor %d\n", actor->uid);
 #endif
 
-    /* Put the actor in the map's actor list */
+    /* Put the actor in the engine's actor list */
     jty_engine->actors = jty_actor_ls_add(jty_engine->actors, actor);
+
+    /* Add any relevant actor actor handlers */
+    jty_a_a_handle_ls *hp;
+    for (hp = jty_engine->a_a_handlers; hp != NULL; hp = hp->next) {
+        jty_actor_add_a_handler(
+                actor,
+                hp->groupnum1,
+                hp->groupnum2,
+                hp->handler);
+    }
 
 #ifdef DEBUG_MODE
     jty_actor_ls *q;
@@ -1101,17 +1116,23 @@ jty_actor_handle_ls *jty_actor_add_a_handler_int(jty_actor *actor,
 }
 
 void jty_actor_add_a_handler(jty_actor *actor,
-        unsigned int order,
-        unsigned int groupnum,
+        unsigned int groupnum1,
+        unsigned int groupnum2,
         jty_c_handler handler)
 {
-    actor->a_h_ls = jty_actor_add_a_handler_int(actor,
-            order,
-            groupnum,
-            handler);
+        if(actor->groupnum & groupnum1) {
+            if(actor->groupnum & groupnum2) {
+                groupnum2 |= groupnum1;
+            }
+            actor->a_h_ls =
+                jty_actor_add_a_handler_int(actor, 1, groupnum2, handler);
+        }else if(actor->groupnum & groupnum2) {
+            actor->a_h_ls =
+                jty_actor_add_a_handler_int(actor, 2, groupnum1, handler);
+        }
 }
 
-void jty_eng_add_a_a_handler(unsigned int groupnum1,
+static void jty_eng_add_a_a_handler_int(unsigned int groupnum1,
         unsigned int groupnum2,
         jty_c_handler handler)
 {
@@ -1120,15 +1141,46 @@ void jty_eng_add_a_a_handler(unsigned int groupnum1,
 
     for(p_actor_ls = jty_engine->actors; p_actor_ls != NULL; p_actor_ls = p_actor_ls->next) {
         actor = p_actor_ls->actor;
-        if(actor->groupnum & groupnum1) {
-            if(actor->groupnum & groupnum2) {
-                groupnum2 |= groupnum1;
-            }
-            jty_actor_add_a_handler(actor, 1, groupnum2, handler);
-        }else if(actor->groupnum & groupnum2) {
-            jty_actor_add_a_handler(actor, 2, groupnum1, handler);
-        }
+        jty_actor_add_a_handler(actor,
+                groupnum1,
+                groupnum2,
+                handler);
     }
+}
+
+static jty_a_a_handle_ls *jty_a_a_handle_ls_add(
+        jty_a_a_handle_ls *ls,
+        unsigned int groupnum1,
+        unsigned int groupnum2,
+        jty_c_handler handler)
+{
+    jty_a_a_handle_ls *hp;
+    hp = malloc(sizeof(*hp));
+
+    if(hp==NULL){
+        fprintf(stderr, "Unable to allocate memory for an "
+                "actor-actor handler list node.\n");
+        exit(1);
+    }
+
+    hp->groupnum1 = groupnum1;
+    hp->groupnum2 = groupnum2;
+    hp->handler = handler;
+    hp->next = ls;
+
+    return hp;
+}
+
+void jty_eng_add_a_a_handler(unsigned int groupnum1,
+        unsigned int groupnum2,
+        jty_c_handler handler)
+{
+    jty_engine->a_a_handlers = jty_a_a_handle_ls_add(
+            jty_engine->a_a_handlers,
+            groupnum1,
+            groupnum2,
+            handler);
+    jty_eng_add_a_a_handler_int(groupnum1, groupnum2, handler);
 }
 
 void jty_paint(void)

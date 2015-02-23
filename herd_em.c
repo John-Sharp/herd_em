@@ -522,19 +522,12 @@ void free_herdem_dog(herdem_dog *dog)
     jty_eng_free_actor((jty_actor *)dog);
 }
 
-int main(void)
+void set_up_level_one()
 {
     int map_w = 25, map_h = 18, tw = 32, th = 32;
     herdem_dog *dog;
     herdem_sheep *sheep;
-    SDL_Event selection;
-    int carry_on = 1;
-    Uint32 start_t, curr_t;
-    Uint32 c_frame = 0, p_frame = 0;
-    int ef = 0;
 
-    herdem_engine = new_herdem_eng();
-    
     /* Creating map */
     if(!(herdem_engine->main_engine.map = jty_new_map(
                 map_w, map_h, tw, th,
@@ -580,7 +573,7 @@ int main(void)
                 "bbbbbbbbbbbbbbbbbbbbbbbbb"
                 ))) {
         fprintf(stderr, "Error loading map\n");
-        return -1;
+        exit(1);
     }
 
     dog = new_herdem_dog();
@@ -599,49 +592,76 @@ int main(void)
     sheep->actor.y = sheep->actor.py = 100;
     sheep->actor.vx = 0;
     sheep->actor.vy = 0;
+}
 
+bool is_level_one_finished()
+{
+    return false;
+}
 
+void clean_up_level_one()
+{
+    jty_engine->set_up_level = NULL;
+}
+
+int main(void)
+{
+    SDL_Event selection;
+    int carry_on = 1;
+    Uint32 start_t, curr_t;
+    Uint32 c_frame = 0, p_frame = 0;
+    int ef = 0;
+
+    herdem_engine = new_herdem_eng();
+    jty_engine->set_up_level = set_up_level_one;
+    jty_engine->is_level_finished = is_level_one_finished;
+    jty_engine->clean_up_level = clean_up_level_one;
+    
     jty_eng_add_a_a_handler(SHEEP, SHEEP, sheep_sheep_collision_handler);
     jty_eng_add_a_a_handler(DOGS, SHEEP, dog_sheep_collision_handler);
 
     start_t = SDL_GetTicks();
 
-    while(carry_on){
+    while (jty_engine->set_up_level != NULL && carry_on) {
+        jty_engine->set_up_level();
+        while(!jty_engine->is_level_finished() && carry_on){
 
-        glClear(GL_COLOR_BUFFER_BIT);
+            glClear(GL_COLOR_BUFFER_BIT);
 
-        /* Do all the painting that is required */
-        jty_paint();
-        p_frame++;
+            /* Do all the painting that is required */
+            jty_paint();
+            p_frame++;
 
-        glFlush();
-        SDL_GL_SwapBuffers();
+            glFlush();
+            SDL_GL_SwapBuffers();
 
-        /* See whether it is time for a logic frame */
-        curr_t = SDL_GetTicks();
-        herdem_engine->main_engine.elapsed_frames = ((double)(curr_t \
-                    - start_t) / 1000. * FPS); 
-        ef = (int)(herdem_engine->main_engine.elapsed_frames - c_frame);
+            /* See whether it is time for a logic frame */
+            curr_t = SDL_GetTicks();
+            herdem_engine->main_engine.elapsed_frames = ((double)(curr_t \
+                        - start_t) / 1000. * FPS); 
+            ef = (int)(herdem_engine->main_engine.elapsed_frames - c_frame);
 
-        /* Work through all the logic frames */
-        while(ef--){
-            c_frame++;
+            /* Work through all the logic frames */
+            while(ef--){
+                c_frame++;
+
+                SDL_PumpEvents();
+                if(SDL_PeepEvents(&selection, 1,
+                            SDL_GETEVENT, SDL_EVENTMASK(SDL_QUIT))){
+                    carry_on = 0;
+                }
+
+                jty_iterate();
+
+            }
 
             SDL_PumpEvents();
             if(SDL_PeepEvents(&selection, 1,
                         SDL_GETEVENT, SDL_EVENTMASK(SDL_QUIT))){
                 carry_on = 0;
             }
-
-            jty_iterate();
-
         }
-
-        SDL_PumpEvents();
-        if(SDL_PeepEvents(&selection, 1,
-                    SDL_GETEVENT, SDL_EVENTMASK(SDL_QUIT))){
-            carry_on = 0;
-        }
+        jty_engine->clean_up_level();
     }
 
 #ifdef DEBUG_MODE

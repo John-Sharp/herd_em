@@ -7,6 +7,7 @@
 #include "SDL.h"
 #include <SDL_image.h>
 #include <math.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <stdarg.h>
 
@@ -38,6 +39,7 @@ typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_map_handle_ls jty_map_handle_ls;
 typedef struct jty_actor_handle_ls jty_actor_handle_ls;
+typedef struct jty_a_a_handle_ls jty_a_a_handle_ls;
 typedef struct jty_c_info jty_c_info; /* Describes collision information */
 typedef int jty_tile; /* Just the index of the member of the c_map array
                          that is this tile. From this number the properties
@@ -200,6 +202,13 @@ struct jty_actor_handle_ls{
                               function */
 };
 
+struct jty_a_a_handle_ls{
+    jty_a_a_handle_ls *next;
+    unsigned int groupnum1;
+    unsigned int groupnum2;
+    jty_c_handler handler;
+};
+
 struct jty_eng{
 
 #ifdef DEBUG_MODE
@@ -211,8 +220,17 @@ struct jty_eng{
     jty_map *map; /* Current map of the game */
 
     jty_actor_ls *actors; /* List of actors that are in the engine */
+    jty_a_a_handle_ls *a_a_handlers; /* List of actor-actor handlers
+                                        in the game */
 
     SDL_Surface *screen; /* Main game window surface */
+
+    bool (*is_level_finished)(); /* Handler for testing whether current
+                                    level is finished */
+    void (*set_up_level)(); /* Handler that sets up the current level */
+    void (*clean_up_level)(); /* Handler that cleans up after level is 
+                                 complete and sets the handlers for the 
+                                 next level */
 };
 
 /* Global variable containing information about the engine */
@@ -283,6 +301,11 @@ void jty_actor_rm_m_handler(jty_actor *actor,
  * matching with 'groupnum1' collides with an actor in a group bitwises AND matching
  * with 'groupnum2' */
 void jty_eng_add_a_a_handler(unsigned int groupnum1,
+        unsigned int groupnum2,
+        jty_c_handler handler);
+
+void jty_actor_add_a_handler(jty_actor *actor,
+        unsigned int groupnum1,
         unsigned int groupnum2,
         jty_c_handler handler);
 
