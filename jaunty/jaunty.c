@@ -684,6 +684,28 @@ void jty_actor_map_tile_overlap(jty_actor *a, int i, int j, jty_overlap *overlap
 
 #define jty_actor_get_sprite(actor) (actor->sprites[actor->current_sprite])
 
+int jty_actor_has_left_map(jty_actor *actor)
+{
+    jty_sprite *sprite = jty_actor_get_sprite(actor);
+    if (actor->x + sprite->w / 2 < 0) {
+        return 1;
+    }
+    if (actor->y + sprite->h / 2 < 0) {
+        return 1;
+    }
+
+    double map_width = jty_engine->map->tw * jty_engine->map->w;
+    if (actor->x - sprite->w / 2 > map_width) {
+        return 1;
+    }
+    double map_height = jty_engine->map->th * jty_engine->map->h;
+    if (actor->y - sprite->h / 2 > map_height) {
+        return 1;
+    }
+
+    return 0;
+}
+
 jty_shape jty_actor_get_c_shape(jty_actor *actor)
 {
     jty_shape *csp = jty_actor_get_sprite(actor)

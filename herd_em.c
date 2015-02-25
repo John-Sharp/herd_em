@@ -275,6 +275,10 @@ void animation_handler(struct jty_actor *actor)
 typedef struct herdem_eng {
     jty_eng main_engine;
 
+    int total_sheeps;
+    int target_sheeps;
+    int saved_sheeps;
+
     jty_actor_ls *sheeps;
     jty_shape *sheep_c_shape;
     jty_shape **sheep_c_shapes;
@@ -375,48 +379,7 @@ int herdem_dog_has_in_scare_window(herdem_dog *dog, jty_vector r_rel)
 
     return x > b && r_rel_rot.x > 0;
 }
-
-void sheep_iterator(jty_actor *actor)
-{
-    herdem_sheep *sheep = (herdem_sheep *)actor;
-    jty_actor_ls *dog_ls;
-    herdem_dog *dog;
-    jty_vector r_rel;
-    double r_rel_mag_sq; /* Magnitude squared of r_rel */
-
-    sheep->actor.ax = 0;
-    sheep->actor.ay = 0;
-    sheep->panicked = false;
-   
-    for (dog_ls = herdem_engine->dogs; dog_ls != NULL; dog_ls = dog_ls->next) {
-        dog = (herdem_dog *)(dog_ls->actor);
-        r_rel.x = sheep->actor.x - dog->actor.x;
-        r_rel.y = sheep->actor.y - dog->actor.y;
-        r_rel_mag_sq = jty_vector_mag_sq(r_rel); 
-        if (r_rel_mag_sq < pow(dog->scare_radius_max, 2)) {
-            sheep->actor.ax += 1 / r_rel_mag_sq * r_rel.x * sheep->fear_acceleration;
-            sheep->actor.ay += 1 / r_rel_mag_sq * r_rel.y * sheep->fear_acceleration;
-            sheep->panicked = true;
-        }
-    }
-
-    jty_vector v = {.x = sheep->actor.vx, .y = sheep->actor.vy};
-    double sheep_speed = sqrt(jty_vector_mag_sq(v));
-    if (sheep_speed == 0) {
-        eight_way_direction_change((jty_actor *)sheep);
-        return;
-    }
-
-    sheep->actor.ax += -1 / sheep_speed * v.x * (sheep_speed - sheep->normal_speed) * 1;
-    sheep->actor.ay += -1 / sheep_speed * v.y * (sheep_speed - sheep->normal_speed) * 1;
-
-    if (sheep->touching_wall < 0 || sheep->touching_wall == WALL_RECOVERY_FRAMES) {
-        eight_way_direction_change((jty_actor *)sheep);
-    }
-
-    sheep->touching_wall -= 1;
-}
-
+void sheep_iterator(jty_actor *actor);
 herdem_sheep *herdem_sheep_init(herdem_sheep *sheep)
 {
     sheep = (herdem_sheep *)jty_actor_init(
@@ -468,6 +431,55 @@ void free_herdem_sheep(herdem_sheep *sheep)
 {
     herdem_engine->sheeps = jty_actor_ls_rm(herdem_engine->sheeps, (jty_actor *)sheep);
     jty_eng_free_actor((jty_actor *)sheep);
+}
+
+void sheep_iterator(jty_actor *actor)
+{
+    herdem_sheep *sheep = (herdem_sheep *)actor;
+    jty_actor_ls *dog_ls;
+    herdem_dog *dog;
+    jty_vector r_rel;
+    double r_rel_mag_sq; /* Magnitude squared of r_rel */
+
+    sheep->actor.ax = 0;
+    sheep->actor.ay = 0;
+    sheep->panicked = false;
+
+    if (jty_actor_has_left_map(actor)) {
+        herdem_engine->saved_sheeps += 1;
+        
+        fprintf(stderr, "A sheep has been saved!!\n");
+        free_herdem_sheep(sheep);
+        return;
+    }
+   
+    for (dog_ls = herdem_engine->dogs; dog_ls != NULL; dog_ls = dog_ls->next) {
+        dog = (herdem_dog *)(dog_ls->actor);
+        r_rel.x = sheep->actor.x - dog->actor.x;
+        r_rel.y = sheep->actor.y - dog->actor.y;
+        r_rel_mag_sq = jty_vector_mag_sq(r_rel); 
+        if (r_rel_mag_sq < pow(dog->scare_radius_max, 2)) {
+            sheep->actor.ax += 1 / r_rel_mag_sq * r_rel.x * sheep->fear_acceleration;
+            sheep->actor.ay += 1 / r_rel_mag_sq * r_rel.y * sheep->fear_acceleration;
+            sheep->panicked = true;
+        }
+    }
+
+    jty_vector v = {.x = sheep->actor.vx, .y = sheep->actor.vy};
+    double sheep_speed = sqrt(jty_vector_mag_sq(v));
+    if (sheep_speed == 0) {
+        eight_way_direction_change((jty_actor *)sheep);
+        return;
+    }
+
+    sheep->actor.ax += -1 / sheep_speed * v.x * (sheep_speed - sheep->normal_speed) * 1;
+    sheep->actor.ay += -1 / sheep_speed * v.y * (sheep_speed - sheep->normal_speed) * 1;
+
+    if (sheep->touching_wall < 0 || sheep->touching_wall == WALL_RECOVERY_FRAMES) {
+        eight_way_direction_change((jty_actor *)sheep);
+    }
+
+    sheep->touching_wall -= 1;
 }
 
 herdem_dog *herdem_dog_init(herdem_dog *dog)
@@ -597,10 +609,15 @@ void set_up_level_one()
     sheep->actor.y = sheep->actor.py = 200;
     sheep->actor.vx = 0;
     sheep->actor.vy = 0;
+
+    herdem_engine->target_sheeps = 2;
+    herdem_engine->saved_sheeps = 0;
 }
 
 bool is_level_one_finished()
 {
+    if (herdem_engine->saved_sheeps == herdem_engine->target_sheeps)
+        return true;
     return false;
 }
 

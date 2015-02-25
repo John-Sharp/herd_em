@@ -282,6 +282,12 @@ jty_actor *jty_actor_init(
         ...
         );
 
+/**
+ * returns 1 if actor is no longer visible on map,
+ * returns 0 otherwise
+ */
+int jty_actor_has_left_map(jty_actor *actor);
+
 /* Add a handler that will get called once each logic frame for the actor */
 void jty_actor_add_i_handler(jty_actor *actor,
                              void (*i_handler)(struct jty_actor *));
