@@ -121,28 +121,43 @@ void dog_sheep_collision_handler(jty_c_info *c_info)
     eight_way_direction_change(sheep);
 }
 
+typedef struct herdem_sheep {
+    jty_actor actor;
+    double normal_speed;
+    double fear_acceleration;
+    double mi; /* inverse mass */
+    bool panicked;
+    int touching_wall;
+} herdem_sheep;
+
 void sheep_sheep_collision_handler(jty_c_info *c_info)
 {
-    jty_actor *sheep1 = c_info->e1.actor;
-    jty_actor *sheep2 = c_info->e2.actor;
+    herdem_sheep *sheep1 = (herdem_sheep *)c_info->e1.actor;
+    herdem_sheep *sheep2 = (herdem_sheep *)c_info->e2.actor;
+    double c = 1; /* coefficient of restitution */
+    double rmi1 = sheep1->mi / (sheep1->mi + sheep2->mi); /* Reduced inverse mass
+                                                            of sheep 1 */
+    double rmi2 = sheep2->mi / (sheep1->mi + sheep2->mi); /* Reduced inverse mass
+                                                            of sheep 2 */
 
-    jty_vector v_rel = {sheep2->vx - sheep1->vx, sheep2->vy - sheep1->vy};
+    jty_vector v_rel = {
+        .x = sheep1->actor.vx - sheep2->actor.vx,
+        .y = sheep1->actor.vy - sheep2->actor.vy
+    };
 
-    sheep2->x += c_info->normal.x * (c_info->penetration + 1);
-    sheep2->y += c_info->normal.y * (c_info->penetration + 1);
+    if (c_info->normal.x) {
+        sheep1->actor.vx -= (1 + c) * v_rel.x * rmi1;
+        sheep2->actor.vx += (1 + c) * v_rel.x * rmi2;
+    } else {
+        sheep1->actor.vy -= (1 + c) * v_rel.y * rmi1;
+        sheep2->actor.vy += (1 + c) * v_rel.y * rmi2;
+    }
 
-    sheep1->x -= c_info->normal.x * (c_info->penetration + 1);
-    sheep1->y -= c_info->normal.y * (c_info->penetration + 1);
+    sheep2->actor.x += rmi2 * c_info->normal.x * (c_info->penetration + 1);
+    sheep2->actor.y += rmi2 * c_info->normal.y * (c_info->penetration + 1);
 
-    if (c_info->normal.x)
-        v_rel.x *= -1;
-    if (c_info->normal.y)
-        v_rel.y *= -1;
-
-    sheep1->vx = -1 * 0.5 * v_rel.x;
-    sheep1->vy = -1 * 0.5 * v_rel.y;
-    sheep2->vx = 0.5 * v_rel.x;
-    sheep2->vy = 0.5 * v_rel.y;
+    sheep1->actor.x -= rmi1 * c_info->normal.x * (c_info->penetration + 1);
+    sheep1->actor.y -= rmi1 * c_info->normal.y * (c_info->penetration + 1);
 }
 
 typedef enum herdem_player_action {
@@ -320,14 +335,6 @@ void free_herdem_eng(herdem_eng *hep)
     jty_eng_free();
 }
 
-typedef struct herdem_sheep {
-    jty_actor actor;
-    double normal_speed;
-    double fear_acceleration;
-    bool panicked;
-    int touching_wall;
-} herdem_sheep;
-
 void sheep_wall_handler(jty_c_info *c_info)
 {
     jty_actor *a = c_info->e1.actor;
@@ -439,6 +446,7 @@ herdem_sheep *herdem_sheep_init(herdem_sheep *sheep)
             );
 
     sheep->normal_speed = 0.9;
+    sheep->mi = 1;
     sheep->fear_acceleration = 5;
     sheep->panicked = false;
 
@@ -490,7 +498,7 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
             127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes
             );
 
-    double max_speed = 1.0;
+    double max_speed = 4.0;
     double half_life = 10;
 
     dog->drag = 1 / half_life *  0.6931471805599453;
@@ -583,13 +591,13 @@ void set_up_level_one()
 
     sheep = new_herdem_sheep();
     sheep->actor.x = sheep->actor.px = 100;
-    sheep->actor.y = sheep->actor.py = 100;
-    sheep->actor.vx = 0;
-    sheep->actor.vy = 0;
+    sheep->actor.y = sheep->actor.py = 300;
+    sheep->actor.vx = 0.5;
+    sheep->actor.vy = -0.5;
 
     sheep = new_herdem_sheep();
-    sheep->actor.x = sheep->actor.px = 200;
-    sheep->actor.y = sheep->actor.py = 100;
+    sheep->actor.x = sheep->actor.px = 100;
+    sheep->actor.y = sheep->actor.py = 200;
     sheep->actor.vx = 0;
     sheep->actor.vy = 0;
 }
