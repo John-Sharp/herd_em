@@ -279,6 +279,11 @@ typedef struct herdem_eng {
     int target_sheeps;
     int saved_sheeps;
 
+    Uint32 level_start_time; /* time in SDL time, in milliseconds, that
+                                the level started */
+    Uint32 level_time; /* length of time (in milliseconds) that the
+                          player has been on the level */
+
     jty_actor_ls *sheeps;
     jty_shape *sheep_c_shape;
     jty_shape **sheep_c_shapes;
@@ -612,10 +617,12 @@ void set_up_level_one()
 
     herdem_engine->target_sheeps = 2;
     herdem_engine->saved_sheeps = 0;
+    herdem_engine->level_start_time = SDL_GetTicks();
 }
 
 bool is_level_one_finished()
 {
+    herdem_engine->level_time = SDL_GetTicks() - herdem_engine->level_start_time;
     if (herdem_engine->saved_sheeps == herdem_engine->target_sheeps)
         return true;
     return false;
@@ -623,6 +630,7 @@ bool is_level_one_finished()
 
 void clean_up_level_one()
 {
+    fprintf(stderr, "Level lasted %f seconds\n", herdem_engine->level_time/1000.);
     jty_engine->set_up_level = NULL;
 }
 
