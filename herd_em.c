@@ -275,6 +275,9 @@ void animation_handler(struct jty_actor *actor)
 typedef struct herdem_eng {
     jty_eng main_engine;
 
+    jty_map *info_board; /* Map for showing the current number of sheep saved,
+                             time and other information */
+
     int total_sheeps;
     int target_sheeps;
     int saved_sheeps;
@@ -546,11 +549,32 @@ void free_herdem_dog(herdem_dog *dog)
     free_jty_actor((jty_actor *)dog);
 }
 
+void herdem_paint()
+{
+    jty_map_paint(herdem_engine->info_board);
+
+    jty_paint();
+}
+
 void set_up_level_one()
 {
     int map_w = 25, map_h = 17, tw = 32, th = 32;
+    int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H - map_h * th;
     herdem_dog *dog;
     herdem_sheep *sheep;
+
+    /* Creating info board */
+
+    if(!(herdem_engine->info_board = new_jty_map(
+                    ib_w, ib_h, ib_tw, ib_th,
+                    "images/ib.png",
+                    "a",
+                    "a",
+                    "a"))) {
+        fprintf(stderr, "Error loading info board!\n");
+        exit(1);
+    }
+    herdem_engine->info_board->map_rect.y = WIN_H - ib_th;
 
     /* Creating map */
     if(!(herdem_engine->main_engine.map = new_jty_map(
@@ -659,7 +683,7 @@ int main(void)
             glClear(GL_COLOR_BUFFER_BIT);
 
             /* Do all the painting that is required */
-            jty_paint();
+            herdem_paint();
             p_frame++;
 
             glFlush();

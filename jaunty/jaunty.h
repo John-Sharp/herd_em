@@ -265,6 +265,12 @@ jty_map *jty_map_init(
         const char *m,
         const char *cm);
 
+/**
+ * paints the map. Is called for the main engine map automatically, but has
+ * a public interface for any additional maps you may want painting
+ */
+void jty_map_paint(jty_map *map);
+
 /* Creates a new actor, consisting of 'num_of_sprites' sprites. The 
  * details of these
  * sprites are given by the succession of 'w', 'h', 'c_r', 'sprite_filename'
