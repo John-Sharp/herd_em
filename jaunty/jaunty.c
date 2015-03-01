@@ -163,8 +163,6 @@ jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h)
     initialise_video(win_w, win_h);
 
     jty_engine->map = NULL;
-    jty_engine->actors = NULL;
-    jty_engine->a_a_handlers = NULL;
     jty_engine->elapsed_frames = 0;
 
     jty_engine->set_up_level = NULL;
@@ -177,6 +175,16 @@ jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h)
 
 void jty_map_free(jty_map *map)
 {
+    jty_actor *a;
+
+    /* Free actors */
+    while(map->actors) {
+        a = map->actors->actor;
+        map->actors = jty_actor_ls_rm(map->actors,
+                map->actors->actor);
+        free(a);
+    }
+
 
 #ifdef DEBUG_MODE
     fprintf(stderr, "Deleting map\n");
@@ -262,7 +270,7 @@ static int jty_map_set_cmap(jty_map *map, const char *cm)
     return 1;
 }
 
-jty_map *jty_new_map(
+jty_map *new_jty_map(
         int w, int h, int tw, int th,
         const char *filename, const char *k, const char *m,
         const char *cm)
@@ -271,6 +279,29 @@ jty_map *jty_new_map(
     if(!map)
         return NULL;
 
+    return jty_map_init(
+            map,
+            w,
+            h,
+            tw,
+            th,
+            filename,
+            k,
+            m,
+            cm);
+}
+
+jty_map *jty_map_init(
+        jty_map *map,
+        int w,
+        int h,
+        int tw,
+        int th,
+        const char *filename,
+        const char *k,
+        const char *m,
+        const char *cm)
+{
     map->w = w;
     map->h = h;
 
@@ -279,8 +310,11 @@ jty_map *jty_new_map(
 
     map->map_rect.x = 0;
     map->map_rect.y = 0;
-    map->map_rect.w = jty_engine->screen->w;
-    map->map_rect.h = jty_engine->screen->h;
+    map->map_rect.w = w * tw; //jty_engine->screen->w;
+    map->map_rect.h = h * th; //jty_engine->screen->h;
+
+    map->actors = NULL;
+    map->a_a_handlers = NULL;
 
     map->tilepalette = IMG_Load(filename);
     if(!map->tilepalette){
@@ -299,6 +333,57 @@ jty_map *jty_new_map(
     }
 
     return map;
+}
+
+/* Paint the 'actor' */
+static int jty_actor_paint(jty_actor *actor)
+{
+    double frame = jty_engine->elapsed_frames;
+    double fframe = frame - floor(frame);  /* fframe holds what fraction we
+                                              through the current frame */
+    jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
+
+    /* Calculating the point where the actor should be drawn */
+    actor->gx = fframe * actor->x + (1 - fframe) * actor->px;
+    actor->gy = fframe * actor->y + (1 - fframe) * actor->py;
+
+    /* Paint the actor's texture in the right place */
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    /* Load the actor's texture */
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    /* Draw the actor */
+
+    /* translating the actor's matrix to the point where the 
+     * the actor should be drawn */
+    glTranslatef(actor->gx, actor->gy, 0);
+    glBindTexture(GL_TEXTURE_2D,
+            curr_sprite->textures[actor->current_frame]);
+
+    glBegin(GL_QUADS);
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    glTexCoord2d(0, 0);
+    glVertex2i(-curr_sprite->p2w/2, -curr_sprite->p2h/2);
+
+    glTexCoord2d(0, 1);
+    glVertex2i(-curr_sprite->p2w/2, curr_sprite->p2h/2);
+
+    glTexCoord2d(1, 1);
+    glVertex2i(curr_sprite->p2w/2, curr_sprite->p2h/2);
+
+    glTexCoord2d(1, 0);
+    glVertex2i(curr_sprite->p2w/2, -curr_sprite->p2h/2);
+
+    glEnd();
+
+    glDisable(GL_BLEND);
+
+    return 1;
 }
 
 void jty_map_paint(jty_map *map)
@@ -331,6 +416,12 @@ void jty_map_paint(jty_map *map)
     glVertex2i(map->w * map->tw, 0);
 
     glEnd();
+
+    /* Paint actors */
+    jty_actor_ls *pg;
+    for(pg = map->actors; pg != NULL; pg = pg->next){
+        jty_actor_paint(pg->actor);
+    }
 
     return;
 }
@@ -477,6 +568,7 @@ void jty_actor_free(jty_actor *actor)
 static jty_actor *jty_actor_init_int(
         jty_actor *actor,
         unsigned int groupnum,
+        jty_map *map,
         int num_of_sprites,
         int w,
         int h,
@@ -511,6 +603,20 @@ static jty_actor *jty_actor_init_int(
     actor->m_h_ls = NULL;
     actor->a_h_ls = NULL;
 
+    actor->map = map;
+    /* Put the actor in the map's actor list */
+    map->actors = jty_actor_ls_add(map->actors, actor);
+
+    /* Add any relevant actor actor handlers */
+    jty_a_a_handle_ls *hp;
+    for (hp = map->a_a_handlers; hp != NULL; hp = hp->next) {
+        jty_actor_add_a_handler(
+                actor,
+                hp->groupnum1,
+                hp->groupnum2,
+                hp->handler);
+    }
+
     actor->groupnum = groupnum;
     actor->sprites = sprites;
     actor->uid = uid;
@@ -521,24 +627,11 @@ static jty_actor *jty_actor_init_int(
     fprintf(stderr, "\nCreating actor %d\n", actor->uid);
 #endif
 
-    /* Put the actor in the engine's actor list */
-    jty_engine->actors = jty_actor_ls_add(jty_engine->actors, actor);
-
-    /* Add any relevant actor actor handlers */
-    jty_a_a_handle_ls *hp;
-    for (hp = jty_engine->a_a_handlers; hp != NULL; hp = hp->next) {
-        jty_actor_add_a_handler(
-                actor,
-                hp->groupnum1,
-                hp->groupnum2,
-                hp->handler);
-    }
-
 #ifdef DEBUG_MODE
     jty_actor_ls *q;
 
-    fprintf(stderr, "List of engine's actors: ");
-    for(q=jty_engine->actors; q!=NULL; q=q->next){
+    fprintf(stderr, "List of map's actors: ");
+    for(q=map->actors; q!=NULL; q=q->next){
         fprintf(stderr, "%d, ", q->actor->uid);
     }
     fprintf(stderr, "\n");
@@ -549,6 +642,7 @@ static jty_actor *jty_actor_init_int(
 
 jty_actor *new_jty_actor(
         unsigned int groupnum,
+        jty_map *map,
         int num_of_sprites,
         int w,
         int h,
@@ -564,6 +658,7 @@ jty_actor *new_jty_actor(
     return jty_actor_init_int(
             actor,
             groupnum,
+            map,
             num_of_sprites,
             w,
             h,
@@ -575,6 +670,7 @@ jty_actor *new_jty_actor(
 jty_actor *jty_actor_init(
         jty_actor *actor,
         unsigned int groupnum,
+        jty_map *map,
         int num_of_sprites,
         int w,
         int h,
@@ -589,63 +685,13 @@ jty_actor *jty_actor_init(
     return jty_actor_init_int(
             actor,
             groupnum,
+            map,
             num_of_sprites,
             w,
             h,
             sprite_filename,
             c_shapes,
             parg);
-}
-
-/* Paint the 'actor' */
-static int jty_actor_paint(jty_actor *actor)
-{
-    double frame = jty_engine->elapsed_frames;
-    double fframe = frame - floor(frame);  /* fframe holds what fraction we
-                                              through the current frame */
-    jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
-
-    /* Calculating the point where the actor should be drawn */
-    actor->gx = fframe * actor->x + (1 - fframe) * actor->px;
-    actor->gy = fframe * actor->y + (1 - fframe) * actor->py;
-
-    /* Paint the actor's texture in the right place */
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    /* Load the actor's texture */
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    /* Draw the actor */
-
-    /* translating the actor's matrix to the point where the 
-     * the actor should be drawn */
-    glTranslatef(actor->gx, actor->gy, 0);
-    glBindTexture(GL_TEXTURE_2D,
-            curr_sprite->textures[actor->current_frame]);
-
-    glBegin(GL_QUADS);
-    glColor3f(1.0f, 1.0f, 1.0f);
-
-    glTexCoord2d(0, 0);
-    glVertex2i(-curr_sprite->p2w/2, -curr_sprite->p2h/2);
-
-    glTexCoord2d(0, 1);
-    glVertex2i(-curr_sprite->p2w/2, curr_sprite->p2h/2);
-
-    glTexCoord2d(1, 1);
-    glVertex2i(curr_sprite->p2w/2, curr_sprite->p2h/2);
-
-    glTexCoord2d(1, 0);
-    glVertex2i(curr_sprite->p2w/2, -curr_sprite->p2h/2);
-
-    glEnd();
-
-    glDisable(GL_BLEND);
-
-    return 1;
 }
 
 void jty_actor_add_i_handler(jty_actor *actor,
@@ -672,11 +718,11 @@ void jty_actor_map_tile_overlap(jty_actor *a, int i, int j, jty_overlap *overlap
     jty_sprite *curr_sprite = a->sprites[a->current_sprite];
 
     jty_calc_overlap_l(a->x - curr_sprite->w / 2., a->x + curr_sprite->w / 2.,
-            i * jty_engine->map->tw, (i + 1) * jty_engine->map->tw,
+            i * a->map->tw, (i + 1) * a->map->tw,
             &(overlap->x));
 
     jty_calc_overlap_l(a->y - curr_sprite->h / 2., a->y + curr_sprite->h / 2.,
-            j * jty_engine->map->th, (j + 1) * jty_engine->map->th,
+            j * a->map->th, (j + 1) * a->map->th,
             &(overlap->y));
 
     return;
@@ -694,11 +740,11 @@ int jty_actor_has_left_map(jty_actor *actor)
         return 1;
     }
 
-    double map_width = jty_engine->map->tw * jty_engine->map->w;
+    double map_width = actor->map->tw * actor->map->w;
     if (actor->x - sprite->w / 2 > map_width) {
         return 1;
     }
-    double map_height = jty_engine->map->th * jty_engine->map->h;
+    double map_height = actor->map->th * actor->map->h;
     if (actor->y - sprite->h / 2 > map_height) {
         return 1;
     }
@@ -921,7 +967,7 @@ int jty_actor_map_tile_c_detect(
         jty_c_info *c_info)
 {
     jty_shape c_shape;
-    jty_map *map = jty_engine->map;
+    jty_map *map = actor->map;
     jty_shape tile_rect = jty_new_shape_rect((i + 0.5) * map->tw,
             (j + 0.5) * map->th,
             map->tw,
@@ -967,8 +1013,8 @@ int set_map_handler(
         double *t,
         jty_c_info *c_info)
 {
-    unsigned char (*c_map)[jty_engine->map->w] =
-        (void *)jty_engine->map->c_map;
+    unsigned char (*c_map)[actor->map->w] =
+        (void *)actor->map->c_map;
     r_r_detect_dn extra_check_dn = R_R_DETECT_BOTH;
 
     if (c_info->normal.x == -1
@@ -976,7 +1022,7 @@ int set_map_handler(
         extra_check_dn = R_R_DETECT_Y;
     }
     if (c_info->normal.x == 1 &&
-            i < jty_engine->map->w - 1 && strchr(mhl->tiles, c_map[j][i-1])) {
+            i < actor->map->w - 1 && strchr(mhl->tiles, c_map[j][i-1])) {
         extra_check_dn = R_R_DETECT_Y;
     }
     if (c_info->normal.y == -1 &&
@@ -984,12 +1030,12 @@ int set_map_handler(
         extra_check_dn = R_R_DETECT_X;
     }
     if (c_info->normal.y == 1 &&
-            j < jty_engine->map->h - 1 && strchr(mhl->tiles, c_map[j-1][i])) {
+            j < actor->map->h - 1 && strchr(mhl->tiles, c_map[j-1][i])) {
         extra_check_dn = R_R_DETECT_X;
     }
 
     c_info->e1.actor = actor;
-    c_info->e2.tile = jty_engine->map->w * j + i;
+    c_info->e2.tile = actor->map->w * j + i;
 
     if (extra_check_dn == R_R_DETECT_BOTH) {
         if (*t > *t_max) {
@@ -1154,14 +1200,16 @@ void jty_actor_add_a_handler(jty_actor *actor,
         }
 }
 
-static void jty_eng_add_a_a_handler_int(unsigned int groupnum1,
+static void jty_map_add_a_a_handler_int(
+        jty_map *map, 
+        unsigned int groupnum1,
         unsigned int groupnum2,
         jty_c_handler handler)
 {
     jty_actor_ls *p_actor_ls;
     jty_actor *actor;
 
-    for(p_actor_ls = jty_engine->actors; p_actor_ls != NULL; p_actor_ls = p_actor_ls->next) {
+    for(p_actor_ls = map->actors; p_actor_ls != NULL; p_actor_ls = p_actor_ls->next) {
         actor = p_actor_ls->actor;
         jty_actor_add_a_handler(actor,
                 groupnum1,
@@ -1193,29 +1241,24 @@ static jty_a_a_handle_ls *jty_a_a_handle_ls_add(
     return hp;
 }
 
-void jty_eng_add_a_a_handler(unsigned int groupnum1,
+void jty_map_add_a_a_handler(
+        jty_map *map, 
+        unsigned int groupnum1,
         unsigned int groupnum2,
         jty_c_handler handler)
 {
-    jty_engine->a_a_handlers = jty_a_a_handle_ls_add(
-            jty_engine->a_a_handlers,
+    map->a_a_handlers = jty_a_a_handle_ls_add(
+            map->a_a_handlers,
             groupnum1,
             groupnum2,
             handler);
-    jty_eng_add_a_a_handler_int(groupnum1, groupnum2, handler);
+    jty_map_add_a_a_handler_int(map, groupnum1, groupnum2, handler);
 }
 
 void jty_paint(void)
 {
     /* Paint map */
     jty_map_paint(jty_engine->map);
-
-    /* Paint actors */
-    jty_actor_ls *pg;
-    for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
-        jty_actor_paint(pg->actor);
-    }
-
 
     return;
 }
@@ -1245,7 +1288,8 @@ int jty_actor_actor_c_detect(
     return 0;
 }
 
-void find_most_ancient_tile_collision(
+void jty_map_find_most_ancient_tile_collision(
+        jty_map *map,
         jty_actor *actor,
         jty_c_handler *handler_max,
         double *t_max,
@@ -1260,24 +1304,24 @@ void find_most_ancient_tile_collision(
     int i, j, k;
     jty_map_handle_ls *mhl;
     char tile_type;
-    unsigned char (*c_map)[jty_engine->map->w] =
-        (void *)jty_engine->map->c_map;
+    unsigned char (*c_map)[map->w] =
+        (void *)map->c_map;
     jty_sprite *curr_sprite = actor->sprites[actor->current_sprite];
     double t;
     jty_c_info c_info;
 
-    i_min = (actor->x - curr_sprite->w / 2.) / jty_engine->map->tw;
+    i_min = (actor->x - curr_sprite->w / 2.) / map->tw;
     if (i_min <= 0)
         i_min = 0;
-    i_max = (actor->x + curr_sprite->w / 2.) / jty_engine->map->tw;
-    if(i_max >= jty_engine->map->w)
-        i_max = jty_engine->map->w - 1;
-    j_min = (actor->y - curr_sprite->h / 2.) / jty_engine->map->th;
+    i_max = (actor->x + curr_sprite->w / 2.) / map->tw;
+    if(i_max >= map->w)
+        i_max = map->w - 1;
+    j_min = (actor->y - curr_sprite->h / 2.) / map->th;
     if (j_min <= 0)
         j_min = 0;
-    j_max = (actor->y + curr_sprite->h / 2.) / jty_engine->map->th;
-    if(j_max >= jty_engine->map->h)
-        j_max = jty_engine->map->h -1;
+    j_max = (actor->y + curr_sprite->h / 2.) / map->th;
+    if(j_max >= map->h)
+        j_max = map->h -1;
 
 
 #ifdef DEBUG_MODE
@@ -1358,7 +1402,8 @@ int jty_actor_has_appropriate_handler(
 }
 
 
-void find_most_ancient_collision(
+void jty_map_find_most_ancient_collision(
+        jty_map *map,
         jty_c_handler *handler_max,
         double *t_max,
         jty_c_info *c_info_max)
@@ -1369,8 +1414,9 @@ void find_most_ancient_collision(
     jty_c_info c_info;
     jty_c_handler handler;
 
-    for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
-        find_most_ancient_tile_collision(
+    for(pg = map->actors; pg != NULL; pg = pg->next){
+        jty_map_find_most_ancient_tile_collision(
+                map,
                 pg->actor,
                 handler_max,
                 t_max,
@@ -1399,7 +1445,7 @@ void find_most_ancient_collision(
     }
 }
 
-void process_collisions()
+void jty_map_process_collisions(jty_map *map)
 {
     jty_c_handler handler_max;
     jty_c_info c_info_max;
@@ -1409,7 +1455,11 @@ void process_collisions()
 
     for (i = 0; i <= MAX_C_PROCESSING_LOOPS; i++) {
         t_max = -1;
-        find_most_ancient_collision(&handler_max, &t_max, &c_info_max);
+        jty_map_find_most_ancient_collision(
+                map,
+                &handler_max,
+                &t_max,
+                &c_info_max);
 
 #ifdef DEBUG_MODE
         if(t_max == -1){
@@ -1435,12 +1485,20 @@ void process_collisions()
     return;
 }
 
-
-
-void jty_iterate()
+void jty_map_iterate(jty_map *map)
 {
     jty_actor_ls *pg;
 
+    /* Iterate each actor */
+    for(pg = map->actors; pg != NULL; pg = pg->next){
+        jty_actor_iterate(pg->actor);
+    }
+
+    jty_map_process_collisions(map);
+}
+
+void jty_iterate()
+{
 #ifdef DEBUG_MODE
     static double last_t = 0;
     double curr_t;
@@ -1453,19 +1511,11 @@ void jty_iterate()
     }else
         jty_engine->print_messages = 0;
 
+    jty_map_iterate(jty_engine->map);
+
 #endif
-
-    /* Iterate each actor */
-    for(pg = jty_engine->actors; pg != NULL; pg = pg->next){
-        jty_actor_iterate(pg->actor);
-    }
-
-    process_collisions();
-
     return;
 }
-
-
 
 jty_actor_ls *jty_actor_ls_rm(jty_actor_ls *ls, jty_actor *actor)
 {
@@ -1483,27 +1533,19 @@ jty_actor_ls *jty_actor_ls_rm(jty_actor_ls *ls, jty_actor *actor)
     return ls;
 }
 
-void jty_eng_free_actor(jty_actor *actor)
+void free_jty_actor(jty_actor *actor)
 {
-    jty_engine->actors = jty_actor_ls_rm(jty_engine->actors, actor);
+    actor->map->actors = jty_actor_ls_rm(actor->map->actors, actor);
     free(actor);
 }
 
 void jty_eng_free(void)
 {
     SDL_Quit();        
-    jty_actor *a;
 
     /* Free map */
     jty_map_free(jty_engine->map);
 
-    /* Free actors */
-    while(jty_engine->actors) {
-        a = jty_engine->actors->actor;
-        jty_engine->actors = jty_actor_ls_rm(jty_engine->actors,
-                jty_engine->actors->actor);
-        free(a);
-    }
 
     free(jty_engine);
 

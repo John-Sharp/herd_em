@@ -390,6 +390,7 @@ herdem_sheep *herdem_sheep_init(herdem_sheep *sheep)
     sheep = (herdem_sheep *)jty_actor_init(
             (jty_actor *)sheep,
             SHEEP,
+            jty_engine->map,
             16,
             106, 69, "images/sprites/sheep/E_walking.png", herdem_engine->sheep_c_shapes,
             124, 124, "images/sprites/sheep/NE_walking.png", herdem_engine->sheep_c_shapes,
@@ -435,7 +436,7 @@ herdem_sheep *new_herdem_sheep()
 void free_herdem_sheep(herdem_sheep *sheep)
 {
     herdem_engine->sheeps = jty_actor_ls_rm(herdem_engine->sheeps, (jty_actor *)sheep);
-    jty_eng_free_actor((jty_actor *)sheep);
+    free_jty_actor((jty_actor *)sheep);
 }
 
 void sheep_iterator(jty_actor *actor)
@@ -492,6 +493,7 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
     dog = (herdem_dog *)jty_actor_init(
             (jty_actor *)dog,
             DOGS,
+            jty_engine->map,
             16,
             108, 71, "images/sprites/dog/E_walking.png", herdem_engine->dog_c_shapes,
             127, 127, "images/sprites/dog/NE_walking.png", herdem_engine->dog_c_shapes,
@@ -541,24 +543,23 @@ herdem_dog *new_herdem_dog()
 
 void free_herdem_dog(herdem_dog *dog)
 {
-    jty_eng_free_actor((jty_actor *)dog);
+    free_jty_actor((jty_actor *)dog);
 }
 
 void set_up_level_one()
 {
-    int map_w = 25, map_h = 18, tw = 32, th = 32;
+    int map_w = 25, map_h = 17, tw = 32, th = 32;
     herdem_dog *dog;
     herdem_sheep *sheep;
 
     /* Creating map */
-    if(!(herdem_engine->main_engine.map = jty_new_map(
+    if(!(herdem_engine->main_engine.map = new_jty_map(
                 map_w, map_h, tw, th,
                 "images/map.png",
                 "abcdefg"
                 "hijklmn"
                 "opqrstu",
                 "abbbbbbbbbbbbbbbbbbbbbbbc"
-                "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiij"
@@ -581,7 +582,6 @@ void set_up_level_one()
                 "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaab"
-                "baaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaac"
                 "baaaaaaaaaaaaaaaaaaaaaaac"
                 "baaaaaaaaaaaaaaaaaaaaaaac"
@@ -598,6 +598,9 @@ void set_up_level_one()
         exit(1);
     }
 
+    jty_map_add_a_a_handler(jty_engine->map, SHEEP, SHEEP, sheep_sheep_collision_handler);
+    jty_map_add_a_a_handler(jty_engine->map, DOGS, SHEEP, dog_sheep_collision_handler);
+
     dog = new_herdem_dog();
     dog->actor.x = dog->actor.px = 400;
     dog->actor.y = dog->actor.py = 300;
@@ -610,10 +613,10 @@ void set_up_level_one()
     sheep->actor.vy = -0.5;
 
     sheep = new_herdem_sheep();
-    sheep->actor.x = sheep->actor.px = 100;
-    sheep->actor.y = sheep->actor.py = 200;
-    sheep->actor.vx = 0;
-    sheep->actor.vy = 0;
+    sheep->actor.x = sheep->actor.px = 0;
+    sheep->actor.y = sheep->actor.py = 0;
+    sheep->actor.vx = 100;
+    sheep->actor.vy = 100;
 
     herdem_engine->target_sheeps = 2;
     herdem_engine->saved_sheeps = 0;
@@ -647,9 +650,6 @@ int main(void)
     jty_engine->is_level_finished = is_level_one_finished;
     jty_engine->clean_up_level = clean_up_level_one;
     
-    jty_eng_add_a_a_handler(SHEEP, SHEEP, sheep_sheep_collision_handler);
-    jty_eng_add_a_a_handler(DOGS, SHEEP, dog_sheep_collision_handler);
-
     start_t = SDL_GetTicks();
 
     while (jty_engine->set_up_level != NULL && carry_on) {

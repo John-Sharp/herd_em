@@ -98,6 +98,10 @@ struct jty_map{
 
     char *c_map; /* Array of collision tile types */
 
+    jty_actor_ls *actors; /* List of actors that are in the engine */
+    jty_a_a_handle_ls *a_a_handlers; /* List of actor-actor handlers
+                                        in the game */
+
     SDL_Rect map_rect; /* SDL_Rect describing the position, width
                           and height of map that is visible */
 
@@ -151,11 +155,13 @@ struct jty_actor{       /* A character in the game */
 
     jty_actor_i_ls *i_ls;      /*  List of actor's iteration handlers */
 
+    jty_map *map;               /* Map this actor is in */
+
     jty_map_handle_ls *m_h_ls; /* List of map collision handlers */
     jty_actor_handle_ls *a_h_ls; /* List of actor collision handlers */
 };
 
-void jty_eng_free_actor(jty_actor *actor);
+void free_jty_actor(jty_actor *actor);
 
 struct jty_actor_ls{         /* List of actors */
     jty_actor *actor; /* Pointer to actor */
@@ -219,10 +225,6 @@ struct jty_eng{
 
     jty_map *map; /* Current map of the game */
 
-    jty_actor_ls *actors; /* List of actors that are in the engine */
-    jty_a_a_handle_ls *a_a_handlers; /* List of actor-actor handlers
-                                        in the game */
-
     SDL_Surface *screen; /* Main game window surface */
 
     bool (*is_level_finished)(); /* Handler for testing whether current
@@ -247,9 +249,20 @@ void jty_map_free(jty_map *map);
  * The collision map is specified in a similar way, but with collision key 'ck'
  * and collision map 'cm'.  Returns a pointer to this map, or NULL if the
  * allocation failed */
-jty_map *jty_new_map(
+jty_map *new_jty_map(
         int w, int h, int tw, int th,
         const char *filename, const char *k, const char *m,
+        const char *cm);
+
+jty_map *jty_map_init(
+        jty_map *map,
+        int w,
+        int h,
+        int tw,
+        int th,
+        const char *filename,
+        const char *k,
+        const char *m,
         const char *cm);
 
 /* Creates a new actor, consisting of 'num_of_sprites' sprites. The 
@@ -262,6 +275,7 @@ jty_map *jty_new_map(
  */
 jty_actor *new_jty_actor(
         unsigned int groupnum,
+        jty_map *map,
         int num_of_sprites,
         int w, int h, const char *sprite_filename, jty_shape **c_shapes,
         ...
@@ -274,6 +288,7 @@ jty_actor *new_jty_actor(
 jty_actor *jty_actor_init(
         jty_actor *actor,
         unsigned int groupnum,
+        jty_map *map,
         int num_of_sprites,
         int w,
         int h,
@@ -306,7 +321,9 @@ void jty_actor_rm_m_handler(jty_actor *actor,
 /* Add a handler that will get called each time an actor in a group bitwise AND
  * matching with 'groupnum1' collides with an actor in a group bitwises AND matching
  * with 'groupnum2' */
-void jty_eng_add_a_a_handler(unsigned int groupnum1,
+void jty_map_add_a_a_handler(
+        jty_map *map,
+        unsigned int groupnum1,
         unsigned int groupnum2,
         jty_c_handler handler);
 
@@ -316,7 +333,7 @@ void jty_actor_add_a_handler(jty_actor *actor,
         jty_c_handler handler);
 
 /* Removes the actor-actor handler */
-void jty_eng_rm_a_a_handler(unsigned int groupnum1,
+void jty_map_rm_a_a_handler(unsigned int groupnum1,
         unsigned int groupnum2,
         jty_c_handler handler);
 
