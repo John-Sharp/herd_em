@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
+
 #define WIN_W 800
 #define WIN_H 600
 #define FPS 300
@@ -22,7 +23,6 @@ enum { DOGS = 1, SHEEP = 1<<1 };
  * the wall
  */
 enum { WALL_RECOVERY_FRAMES = 10 };
-
 
 /**
  * Sets the current sprite of actor `a` so that
@@ -117,6 +117,8 @@ void dog_sheep_collision_handler(jty_c_info *c_info)
         dog->vy += 2 * v_rel.y;
     }
 }
+
+
 
 typedef struct herdem_sheep {
     jty_actor actor;
@@ -559,9 +561,10 @@ void herdem_paint()
 void set_up_level_one()
 {
     int map_w = 25, map_h = 17, tw = 32, th = 32;
-    int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H - map_h * th;
+    int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H;// - map_h * th;
     herdem_dog *dog;
     herdem_sheep *sheep;
+    jty_txt_actor *time;
 
     /* Creating info board */
 
@@ -575,6 +578,16 @@ void set_up_level_one()
         exit(1);
     }
     herdem_engine->info_board->map_rect.y = WIN_H - ib_th;
+
+    time = new_jty_txt_actor(
+            1,
+            800,
+            20,
+            herdem_engine->info_board);
+    jty_txt_actor_set_text(time, "<span foreground=\"#FFFFFF\" >00:00</span>");
+
+    time->parent.x = time->parent.px = 400;
+    time->parent.y = time->parent.py = 20;
 
     /* Creating map */
     if(!(herdem_engine->main_engine.map = new_jty_map(

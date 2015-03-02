@@ -484,15 +484,31 @@ jty_sprite *jty_sprite_create(
         return NULL;
     }
 
+    if (sprite_filename == NULL) {
+        /**
+         * If no filename stated just return a sprite with nothing
+         * bound to the textures
+         */
+
+        sprite->textures = malloc(sizeof(*sprite->textures));
+        glGenTextures(1, sprite->textures);
+        return sprite;
+    }
+
     /* Load the image file that will contain the sprite */
     image = IMG_Load(sprite_filename);
+
+    sprite->num_of_frames = image->w / w;
+
+    sprite->textures = malloc(sprite->num_of_frames * sizeof(*sprite->textures));
+    glGenTextures(sprite->num_of_frames, sprite->textures);
+
 
     if(!image){
         fprintf(stderr, "Error! Could not load %s\n", sprite_filename);
         return NULL;
     }
 
-    sprite->num_of_frames = image->w / w;
 
     /* Make SDL copy the alpha channel of the image */
     SDL_SetAlpha(image, 0, SDL_ALPHA_OPAQUE);
@@ -509,8 +525,6 @@ jty_sprite *jty_sprite_create(
         return NULL;
     }
 
-    sprite->textures = malloc(sprite->num_of_frames * sizeof(*sprite->textures));
-    glGenTextures(sprite->num_of_frames, sprite->textures);
 
     for(i=0; i < sprite->num_of_frames; i++) {
         dst.x = xpad;
@@ -574,8 +588,7 @@ static jty_actor *jty_actor_init_int(
         int h,
         const char *sprite_filename,
         jty_shape **c_shapes,
-        va_list parg
-        )
+        va_list parg)
 {
     jty_sprite **sprites;
     static unsigned int uid = 0;
@@ -1531,6 +1544,133 @@ jty_actor_ls *jty_actor_ls_rm(jty_actor_ls *ls, jty_actor *actor)
 
     ls->next = jty_actor_ls_rm(ls->next, actor);
     return ls;
+}
+
+jty_txt_actor *jty_txt_actor_init(
+        jty_txt_actor *actor,
+        unsigned int groupnum,
+        jty_map *map,
+        int w,
+        int h)
+{
+    jty_actor_init(
+            (jty_actor *)actor,
+            groupnum,
+            map,
+            1,
+            w,
+            h,
+            NULL,
+            NULL );
+
+    actor->p2_surface = SDL_CreateRGBSurface(
+            SDL_SWSURFACE,
+            actor->parent.sprites[0]->p2w,
+            actor->parent.sprites[0]->p2h,
+            32,
+            RMASK,
+            GMASK,
+            BMASK,
+            AMASK);
+
+    if(!actor->p2_surface){
+        fprintf(stderr, "Error creating a surface for the sprite\n");
+        free_jty_actor((jty_actor *)actor);
+        return NULL;
+    }
+    if(SDL_MUSTLOCK(actor->p2_surface))
+        SDL_LockSurface(actor->p2_surface);
+
+    actor->cairo_surface = cairo_image_surface_create_for_data(
+            actor->p2_surface->pixels,
+            CAIRO_FORMAT_RGB24,
+            actor->p2_surface->w,
+            actor->p2_surface->h,
+            actor->p2_surface->pitch);
+
+    actor->cr = cairo_create(actor->cairo_surface);
+
+    actor->font_description = pango_font_description_new();
+    pango_font_description_set_family(actor->font_description, "serif");
+    pango_font_description_set_weight(actor->font_description,
+            PANGO_WEIGHT_BOLD);
+    pango_font_description_set_absolute_size(
+            actor->font_description,
+            20 * PANGO_SCALE);
+
+    actor->layout = pango_cairo_create_layout(actor->cr);
+    pango_layout_set_font_description(actor->layout, actor->font_description);
+    pango_layout_set_width(actor->layout, w * PANGO_SCALE); 
+    pango_layout_set_height(actor->layout, h * PANGO_SCALE); 
+    pango_layout_set_alignment(actor->layout, PANGO_ALIGN_CENTER);
+
+    if(SDL_MUSTLOCK(actor->p2_surface))
+        SDL_UnlockSurface(actor->p2_surface);
+
+    actor->text[0] = '\0';
+
+    glBindTexture(
+            GL_TEXTURE_2D,
+            actor->parent.sprites[0]->textures[0]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, actor->p2_surface->w,
+            actor->p2_surface->h,
+            0, GL_RGBA, GL_UNSIGNED_BYTE, actor->p2_surface->pixels);
+    return actor;
+}
+
+jty_txt_actor *new_jty_txt_actor(
+        unsigned int groupnum,
+        int w,
+        int h,
+        jty_map *map)
+{
+    jty_txt_actor *actor = malloc(sizeof(*actor));
+
+    if (!actor) {
+        return NULL;
+    }
+
+   jty_txt_actor_init(
+           actor,
+           groupnum,
+           map,
+           w,
+           h);
+
+   return actor;
+}
+
+void jty_txt_actor_set_text(jty_txt_actor *actor, const char *text)
+{
+    int offset_x, offset_y;
+
+    offset_x = (actor->parent.sprites[0]->p2w - actor->parent.sprites[0]->w)/2;
+    offset_y = (actor->parent.sprites[0]->p2h - actor->parent.sprites[0]->h)/2;
+
+    strncpy(actor->text, text, TEXTLENGTH - 1);
+
+    if(SDL_MUSTLOCK(actor->p2_surface))
+        SDL_LockSurface(actor->p2_surface);
+
+    //pango_layout_set_text(actor->layout, actor->text, -1);
+    pango_layout_set_markup(actor->layout, actor->text, -1);
+    cairo_move_to(actor->cr, offset_x,
+           offset_y);
+    pango_cairo_show_layout(actor->cr, actor->layout);
+
+    if(SDL_MUSTLOCK(actor->p2_surface))
+        SDL_UnlockSurface(actor->p2_surface);
+
+    glBindTexture(GL_TEXTURE_2D, actor->parent.sprites[0]->textures[0]);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, actor->p2_surface->w,
+            actor->p2_surface->h,
+            0, GL_RGBA, GL_UNSIGNED_BYTE, actor->p2_surface->pixels);
+
+    return;
 }
 
 void free_jty_actor(jty_actor *actor)

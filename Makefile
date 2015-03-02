@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -pg -g -Wall -lSDL_image -lm -lGL `sdl-config --cflags --libs`				
+CFLAGS = -pg -g -Wall -lSDL_image -lm -lGL `pkg-config --cflags --libs pangocairo` `sdl-config --cflags --libs`				
 
 herd_em: herd_em.c jaunty/jaunty.c jaunty/jaunty.h
 	$(CC) herd_em.c jaunty/jaunty.c \

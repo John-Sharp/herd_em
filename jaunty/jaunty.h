@@ -11,6 +11,10 @@
 #include <limits.h>
 #include <stdarg.h>
 
+#include <cairo.h>
+#include <pango/pangocairo.h>
+#include <string.h>
+
 #define DEBUG_MODE
 
 #ifdef DEBUG_MODE
@@ -34,6 +38,7 @@ typedef enum jty_shape_type { JTY_CIRCLE, JTY_RECT } jty_shape_type; /* Definiti
 typedef struct jty_map jty_map;
 typedef struct jty_sprite jty_sprite;
 typedef struct jty_actor jty_actor;
+typedef struct jty_txt_actor jty_txt_actor;
 typedef struct jty_actor_ls jty_actor_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
 typedef struct jty_actor_i_ls jty_actor_i_ls;
@@ -161,6 +166,8 @@ struct jty_actor{       /* A character in the game */
     jty_actor_handle_ls *a_h_ls; /* List of actor collision handlers */
 };
 
+
+
 void free_jty_actor(jty_actor *actor);
 
 struct jty_actor_ls{         /* List of actors */
@@ -214,6 +221,44 @@ struct jty_a_a_handle_ls{
     unsigned int groupnum2;
     jty_c_handler handler;
 };
+
+enum { TEXTLENGTH = 70 };
+struct jty_txt_actor{
+    struct jty_actor parent; /* jactor attributes this struct 'inherits' */
+
+    SDL_Surface *p2_surface; /* surface formatted for associating to a openGL
+                               texture */
+
+    char text[TEXTLENGTH]; /* Text that will be written on the background
+                              when the paint function is called */
+
+    cairo_surface_t *cairo_surface; /* cairo surface that's around
+                                       'p2_surface' */
+
+    cairo_t *cr; /* cairo brush used for painting the text */
+
+    PangoLayout *layout; /* layout that describes the text */
+
+    PangoFontDescription *font_description; /* variable that describes
+                                               the font */
+};
+
+/**
+ * Free the resources allocated to `actor'
+ */
+void free_jty_txt_actor(jty_txt_actor *actor);
+
+/**
+ * Create text_jactor 
+ */
+jty_txt_actor *new_jty_txt_actor(
+        unsigned int groupnum,
+        int w,
+        int h,
+        jty_map *map);
+
+/* Sets the text to 'text', returns 1 if successful, 0 if error */
+void jty_txt_actor_set_text(jty_txt_actor *actor, const char *text);
 
 struct jty_eng{
 
