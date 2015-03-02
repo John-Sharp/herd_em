@@ -314,6 +314,7 @@ jty_map *jty_map_init(
     map->map_rect.h = h * th; //jty_engine->screen->h;
 
     map->actors = NULL;
+    map->collision_actors = NULL;
     map->a_a_handlers = NULL;
 
     map->tilepalette = IMG_Load(filename);
@@ -634,6 +635,7 @@ static jty_actor *jty_actor_init_int(
     actor->sprites = sprites;
     actor->uid = uid;
     actor->num_of_sprites = num_of_sprites;
+    actor->collision_primed = 0;
     uid++;
 
 #ifdef DEBUG_MODE
@@ -1135,6 +1137,13 @@ void jty_actor_add_m_handler(jty_actor *actor,
                              char *tiles)
 {
 
+    if (actor->collision_primed == 0) {
+        actor->map->collision_actors = jty_actor_ls_add(
+                actor->map->collision_actors,
+                actor);
+    }
+    actor->collision_primed += 1;
+
     actor->m_h_ls = jty_actor_add_m_handler_int(
             actor,
             handler,
@@ -1164,6 +1173,10 @@ static jty_map_handle_ls *jty_actor_rm_m_handler_int(jty_map_handle_ls *ls,
 void jty_actor_rm_m_handler(jty_actor *actor,
                             jty_c_handler handler)
 {
+    if (actor->collision_primed == 0) {
+        return;
+    }
+    actor->collision_primed -= 1;
 
     actor->m_h_ls = 
         jty_actor_rm_m_handler_int(actor->m_h_ls,
@@ -1205,9 +1218,21 @@ void jty_actor_add_a_handler(jty_actor *actor,
             if(actor->groupnum & groupnum2) {
                 groupnum2 |= groupnum1;
             }
+            if (actor->collision_primed == 0) {
+                actor->map->collision_actors = jty_actor_ls_add(
+                        actor->map->collision_actors,
+                        actor);
+            }
+            actor->collision_primed += 1;
             actor->a_h_ls =
                 jty_actor_add_a_handler_int(actor, 1, groupnum2, handler);
         }else if(actor->groupnum & groupnum2) {
+            if (actor->collision_primed == 0) {
+                actor->map->collision_actors = jty_actor_ls_add(
+                        actor->map->collision_actors,
+                        actor);
+            }
+            actor->collision_primed += 1;
             actor->a_h_ls =
                 jty_actor_add_a_handler_int(actor, 2, groupnum1, handler);
         }
@@ -1427,7 +1452,7 @@ void jty_map_find_most_ancient_collision(
     jty_c_info c_info;
     jty_c_handler handler;
 
-    for(pg = map->actors; pg != NULL; pg = pg->next){
+    for(pg = map->collision_actors; pg != NULL; pg = pg->next){
         jty_map_find_most_ancient_tile_collision(
                 map,
                 pg->actor,
@@ -1656,7 +1681,6 @@ void jty_txt_actor_set_text(jty_txt_actor *actor, const char *text)
     if(SDL_MUSTLOCK(actor->p2_surface))
         SDL_LockSurface(actor->p2_surface);
 
-    //pango_layout_set_text(actor->layout, actor->text, -1);
     pango_layout_set_markup(actor->layout, actor->text, -1);
     cairo_move_to(actor->cr, offset_x,
            offset_y);
@@ -1677,6 +1701,11 @@ void jty_txt_actor_set_text(jty_txt_actor *actor, const char *text)
 void free_jty_actor(jty_actor *actor)
 {
     actor->map->actors = jty_actor_ls_rm(actor->map->actors, actor);
+    if (actor->collision_primed) {
+        actor->map->collision_actors = jty_actor_ls_rm(
+                actor->map->collision_actors,
+                actor);
+    }
     free(actor);
 }
 

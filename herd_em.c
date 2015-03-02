@@ -582,10 +582,10 @@ void timer_update(jty_actor *actor)
 void set_up_level_one()
 {
     int map_w = 25, map_h = 17, tw = 32, th = 32;
-    int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H;// - map_h * th;
+    int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H;
     herdem_dog *dog;
     herdem_sheep *sheep;
-    jty_txt_actor *timer;
+    jty_txt_actor *timer, *saved_tally;
 
     /* Creating info board */
 
@@ -610,6 +610,17 @@ void set_up_level_one()
     timer->parent.x = timer->parent.px = 400;
     timer->parent.y = timer->parent.py = 20;
     jty_actor_add_i_handler((jty_actor *)timer, timer_update);
+
+    saved_tally = new_jty_txt_actor(
+            1,
+            800,
+            20,
+            herdem_engine->info_board);
+    pango_layout_set_alignment(saved_tally->layout, PANGO_ALIGN_RIGHT);
+    jty_txt_actor_set_text(saved_tally, "<span foreground=\"#FFFFFF\"> 0/2 sheep herded </span>");
+    saved_tally->parent.x = saved_tally->parent.px = 400;
+    saved_tally->parent.y = saved_tally->parent.py = 20;
+
 
     /* Creating map */
     if(!(herdem_engine->main_engine.map = new_jty_map(
@@ -672,8 +683,8 @@ void set_up_level_one()
     sheep->actor.vy = -0.5;
 
     sheep = new_herdem_sheep();
-    sheep->actor.x = sheep->actor.px = 0;
-    sheep->actor.y = sheep->actor.py = 0;
+    sheep->actor.x = sheep->actor.px = 200;
+    sheep->actor.y = sheep->actor.py = 200;
     sheep->actor.vx = 100;
     sheep->actor.vy = 100;
 

@@ -104,6 +104,9 @@ struct jty_map{
     char *c_map; /* Array of collision tile types */
 
     jty_actor_ls *actors; /* List of actors that are in the engine */
+    jty_actor_ls *collision_actors; /* Actors that are primed to 
+                                       collide */
+
     jty_a_a_handle_ls *a_a_handlers; /* List of actor-actor handlers
                                         in the game */
 
@@ -144,6 +147,9 @@ struct jty_sprite {
 struct jty_actor{       /* A character in the game */
     unsigned int uid;           /* Unique identifier for actor */
     unsigned int groupnum;      /* Group number of the actor */
+    unsigned int collision_primed; /* Counter of how many 
+                                      collision handlers are
+                                      associated with this actor */
 
     GLfloat x, y;               /* x, y coordinates of actor */
     GLfloat px, py;             /* x, y coordinates from previous frame */
