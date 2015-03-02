@@ -398,7 +398,8 @@ void jty_map_rm_a_a_handler(unsigned int groupnum1,
 void jty_eng_free(void);
 
 /* Creates the engine */
-jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h);
+jty_eng *new_jty_eng(unsigned int win_w, unsigned int win_h);
+jty_eng *jty_eng_init(jty_eng *engine, unsigned int win_w, unsigned int win_h);
 
 /* Paint everything onto the screen */
 void jty_paint(void);

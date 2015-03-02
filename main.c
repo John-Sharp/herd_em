@@ -1,19 +1,11 @@
 #include "jaunty/jaunty.h"
+#include "herdem.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
 
-#define WIN_W 800
-#define WIN_H 600
-#define FPS 300
-
 #define DEBUG_MODE
 
-typedef enum herdem_direction{
-    DIRECTION_E, DIRECTION_NE, DIRECTION_N,
-    DIRECTION_NW, DIRECTION_W, DIRECTION_SW,
-    DIRECTION_S, DIRECTION_SE 
-} herdem_direction;
 
 enum { DOGS = 1, SHEEP = 1<<1 };
 
@@ -159,12 +151,6 @@ void sheep_sheep_collision_handler(jty_c_info *c_info)
     sheep1->actor.y -= rmi1 * c_info->normal.y * (c_info->penetration + 1);
 }
 
-typedef enum herdem_player_action {
-    HERDEM_MOVE_N = 1,
-    HERDEM_MOVE_E = 1<<1,
-    HERDEM_MOVE_S = 1<<2,
-    HERDEM_MOVE_W = 1<<3} herdem_player_action;
-
 typedef struct herdem_dog {
     jty_actor actor;
     double acceleration;
@@ -265,87 +251,6 @@ void input_handler(struct jty_actor *actor)
     herdem_dog_calculate_acceleration(dog);
 }
 
-void animation_handler(struct jty_actor *actor) 
-{
-    int animation_framerate = 8; /* frames per second */
-    jty_sprite *sprite = actor->sprites[actor->current_sprite];
-    int animation_frames_passed = jty_engine->elapsed_frames / FPS * animation_framerate;
-    actor->current_frame = animation_frames_passed % sprite->num_of_frames;
-    return;
-}
-
-typedef struct herdem_eng {
-    jty_eng main_engine;
-
-    jty_map *info_board; /* Map for showing the current number of sheep saved,
-                             time and other information */
-
-    int total_sheeps;
-    int target_sheeps;
-    int saved_sheeps;
-
-    Uint32 level_start_time; /* time in SDL time, in milliseconds, that
-                                the level started */
-    Uint32 level_time; /* length of time (in milliseconds) that the
-                          player has been on the level */
-
-    jty_actor_ls *sheeps;
-    jty_shape *sheep_c_shape;
-    jty_shape **sheep_c_shapes;
-
-    jty_actor_ls *dogs;
-    jty_shape *dog_c_shape;
-    jty_shape **dog_c_shapes;
-} herdem_eng;
-
-herdem_eng *herdem_engine;
-
-herdem_eng *new_herdem_eng()
-{
-    herdem_eng *hep;
-    int i = 0;
-
-    hep = realloc(jty_eng_create(WIN_W, WIN_H), sizeof(*hep));
-    jty_engine = (jty_eng *)hep;
-
-    hep->sheeps = NULL;
-    hep->sheep_c_shape = malloc(sizeof(*hep->sheep_c_shape));
-    hep->sheep_c_shape->centre.x = 0;
-    hep->sheep_c_shape->centre.y = 0;
-    hep->sheep_c_shape->radius =0;
-    hep->sheep_c_shape->w = 40;
-    hep->sheep_c_shape->h = 40;
-    hep->sheep_c_shape->type = JTY_RECT;
-
-    hep->sheep_c_shapes = malloc(4*sizeof(*hep->sheep_c_shapes));
-    for (i = 0; i < 4; i++) {
-        hep->sheep_c_shapes[i] = hep->sheep_c_shape;
-    }
-
-    hep->dogs = NULL;
-    hep->dog_c_shape = malloc(sizeof(*hep->dog_c_shape));
-    hep->dog_c_shape->centre.x = 0;
-    hep->dog_c_shape->centre.y = 0;
-    hep->dog_c_shape->radius =0;
-    hep->dog_c_shape->w = 40;
-    hep->dog_c_shape->h = 40;
-    hep->dog_c_shape->type = JTY_RECT;
-
-    hep->dog_c_shapes = malloc(4*sizeof(*hep->dog_c_shapes));
-    for (i = 0; i < 4; i++) {
-        hep->dog_c_shapes[i] = hep->dog_c_shape;
-    }
-
-    return hep;
-}
-
-void free_herdem_eng(herdem_eng *hep)
-{
-    free(hep->sheep_c_shape);
-    free(hep->sheep_c_shapes);
-    jty_eng_free();
-}
-
 void sheep_wall_handler(jty_c_info *c_info)
 {
     jty_actor *a = c_info->e1.actor;
@@ -421,7 +326,7 @@ herdem_sheep *herdem_sheep_init(herdem_sheep *sheep)
     sheep->fear_acceleration = 5;
     sheep->panicked = false;
 
-    jty_actor_add_i_handler((jty_actor *)sheep, animation_handler);
+    jty_actor_add_i_handler((jty_actor *)sheep, herdem_animation_handler);
     jty_actor_add_i_handler((jty_actor *)sheep, sheep_iterator);
     jty_actor_add_m_handler((jty_actor *)sheep, sheep_wall_handler, "b");
 
@@ -529,7 +434,7 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
     dog->scare_radius_min = 60;
     dog->scare_radius_max = 160;
     jty_actor_add_i_handler((jty_actor *)dog, input_handler);
-    jty_actor_add_i_handler((jty_actor *)dog, animation_handler);
+    jty_actor_add_i_handler((jty_actor *)dog, herdem_animation_handler);
     jty_actor_add_m_handler((jty_actor *)dog, dog_wall_handler, "bc");
 
     herdem_engine->dogs = jty_actor_ls_add(herdem_engine->dogs, (jty_actor *)dog);
@@ -549,20 +454,6 @@ herdem_dog *new_herdem_dog()
 void free_herdem_dog(herdem_dog *dog)
 {
     free_jty_actor((jty_actor *)dog);
-}
-
-void herdem_paint()
-{
-    jty_map_paint(herdem_engine->info_board);
-
-    jty_paint();
-}
-
-void herdem_iterate()
-{
-    jty_map_iterate(herdem_engine->info_board);
-
-    jty_iterate();
 }
 
 void timer_update(jty_actor *actor)
@@ -623,7 +514,7 @@ void set_up_level_one()
 
 
     /* Creating map */
-    if(!(herdem_engine->main_engine.map = new_jty_map(
+    if(!(herdem_engine->parent.map = new_jty_map(
                 map_w, map_h, tw, th,
                 "images/map.png",
                 "abcdefg"
@@ -737,9 +628,9 @@ int main(void)
 
             /* See whether it is time for a logic frame */
             curr_t = SDL_GetTicks();
-            herdem_engine->main_engine.elapsed_frames = ((double)(curr_t \
+            herdem_engine->parent.elapsed_frames = ((double)(curr_t \
                         - start_t) / 1000. * FPS); 
-            ef = (int)(herdem_engine->main_engine.elapsed_frames - c_frame);
+            ef = (int)(herdem_engine->parent.elapsed_frames - c_frame);
 
             /* Work through all the logic frames */
             while(ef--){

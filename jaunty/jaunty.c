@@ -157,18 +157,25 @@ static void initialise_video(unsigned int win_w,
     return;
 }
 
-jty_eng *jty_eng_create(unsigned int win_w, unsigned int win_h)
+jty_eng *new_jty_eng(unsigned int win_w, unsigned int win_h)
 {
     jty_engine = malloc(sizeof(*jty_engine));
+
+    return jty_eng_init(jty_engine, win_w, win_h);
+}
+
+jty_eng *jty_eng_init(jty_eng *engine, unsigned int win_w, unsigned int win_h)
+{
+    jty_engine = engine;
     initialise_video(win_w, win_h);
 
-    jty_engine->map = NULL;
-    jty_engine->elapsed_frames = 0;
+    engine->map = NULL;
+    engine->elapsed_frames = 0;
 
-    jty_engine->set_up_level = NULL;
-    jty_engine->is_level_finished = NULL;
-    jty_engine->clean_up_level = NULL;
-    return jty_engine;
+    engine->set_up_level = NULL;
+    engine->is_level_finished = NULL;
+    engine->clean_up_level = NULL;
+    return engine;
 }
 
 /* Map functions */
