@@ -400,4 +400,6 @@ void jty_paint(void);
 /* Carry out a logic frame */
 void jty_iterate(void);
 
+void jty_map_iterate(jty_map *map);
+
 #endif

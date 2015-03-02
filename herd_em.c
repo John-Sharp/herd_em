@@ -558,13 +558,34 @@ void herdem_paint()
     jty_paint();
 }
 
+void herdem_iterate()
+{
+    jty_map_iterate(herdem_engine->info_board);
+
+    jty_iterate();
+}
+
+void timer_update(jty_actor *actor)
+{
+    jty_txt_actor *timer = (jty_txt_actor *)actor;
+
+    int minutes_elapsed = herdem_engine->level_time / 1000. / 60.;
+    int seconds_elapsed = (int)(herdem_engine->level_time / 1000.)  % 60;
+    char timer_text[200];
+    sprintf(timer_text, "<span foreground=\"#FFFFFF\" >%i:%02i</span>", minutes_elapsed, seconds_elapsed);
+
+    jty_txt_actor_set_text(timer, timer_text);
+
+    return;
+}
+
 void set_up_level_one()
 {
     int map_w = 25, map_h = 17, tw = 32, th = 32;
     int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H;// - map_h * th;
     herdem_dog *dog;
     herdem_sheep *sheep;
-    jty_txt_actor *time;
+    jty_txt_actor *timer;
 
     /* Creating info board */
 
@@ -579,15 +600,16 @@ void set_up_level_one()
     }
     herdem_engine->info_board->map_rect.y = WIN_H - ib_th;
 
-    time = new_jty_txt_actor(
+    timer = new_jty_txt_actor(
             1,
             800,
             20,
             herdem_engine->info_board);
-    jty_txt_actor_set_text(time, "<span foreground=\"#FFFFFF\" >00:00</span>");
+    jty_txt_actor_set_text(timer, "<span foreground=\"#FFFFFF\" >00:00</span>");
 
-    time->parent.x = time->parent.px = 400;
-    time->parent.y = time->parent.py = 20;
+    timer->parent.x = timer->parent.px = 400;
+    timer->parent.y = timer->parent.py = 20;
+    jty_actor_add_i_handler((jty_actor *)timer, timer_update);
 
     /* Creating map */
     if(!(herdem_engine->main_engine.map = new_jty_map(
@@ -718,7 +740,7 @@ int main(void)
                     carry_on = 0;
                 }
 
-                jty_iterate();
+                herdem_iterate();
 
             }
 

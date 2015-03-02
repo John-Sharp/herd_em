@@ -1652,6 +1652,7 @@ void jty_txt_actor_set_text(jty_txt_actor *actor, const char *text)
 
     strncpy(actor->text, text, TEXTLENGTH - 1);
 
+    SDL_FillRect(actor->p2_surface, NULL, 0);
     if(SDL_MUSTLOCK(actor->p2_surface))
         SDL_LockSurface(actor->p2_surface);
 
