@@ -6,19 +6,7 @@
 
 #define DEBUG_MODE
 
-void timer_update(jty_actor *actor)
-{
-    jty_txt_actor *timer = (jty_txt_actor *)actor;
 
-    int minutes_elapsed = herdem_engine->level_time / 1000. / 60.;
-    int seconds_elapsed = (int)(herdem_engine->level_time / 1000.)  % 60;
-    char timer_text[200];
-    sprintf(timer_text, "<span foreground=\"#FFFFFF\" >%i:%02i</span>", minutes_elapsed, seconds_elapsed);
-
-    jty_txt_actor_set_text(timer, timer_text);
-
-    return;
-}
 
 void set_up_level_one()
 {
@@ -26,7 +14,7 @@ void set_up_level_one()
     int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H;
     herdem_dog *dog;
     herdem_sheep *sheep;
-    jty_txt_actor *timer, *saved_tally;
+    jty_txt_actor *saved_tally;
 
     /* Creating info board */
 
@@ -41,17 +29,6 @@ void set_up_level_one()
     }
     herdem_engine->info_board->map_rect.y = WIN_H - ib_th;
 
-    timer = new_jty_txt_actor(
-            1,
-            800,
-            20,
-            herdem_engine->info_board);
-    jty_txt_actor_set_text(timer, "<span foreground=\"#FFFFFF\" >00:00</span>");
-
-    timer->parent.x = timer->parent.px = 400;
-    timer->parent.y = timer->parent.py = 20;
-    jty_actor_add_i_handler((jty_actor *)timer, timer_update);
-
     saved_tally = new_jty_txt_actor(
             1,
             800,
@@ -61,6 +38,7 @@ void set_up_level_one()
     jty_txt_actor_set_text(saved_tally, "<span foreground=\"#FFFFFF\"> 0/2 sheep herded </span>");
     saved_tally->parent.x = saved_tally->parent.px = 400;
     saved_tally->parent.y = saved_tally->parent.py = 20;
+    new_herdem_timer(400, 20);
 
 
     /* Creating map */

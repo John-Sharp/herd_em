@@ -263,6 +263,16 @@ jty_txt_actor *new_jty_txt_actor(
         int h,
         jty_map *map);
 
+/**
+ * Initialises text actor `actor`
+ */
+jty_txt_actor *jty_txt_actor_init(
+        jty_txt_actor *actor,
+        unsigned int groupnum,
+        jty_map *map,
+        int w,
+        int h);
+
 /* Sets the text to 'text', returns 1 if successful, 0 if error */
 void jty_txt_actor_set_text(jty_txt_actor *actor, const char *text);
 
