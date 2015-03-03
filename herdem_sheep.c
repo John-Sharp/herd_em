@@ -153,8 +153,8 @@ void herdem_sheep_iterator(jty_actor *actor)
    
     for (dog_ls = herdem_engine->dogs; dog_ls != NULL; dog_ls = dog_ls->next) {
         dog = (herdem_dog *)(dog_ls->actor);
-        r_rel.x = sheep->parent.x - dog->actor.x;
-        r_rel.y = sheep->parent.y - dog->actor.y;
+        r_rel.x = sheep->parent.x - dog->parent.x;
+        r_rel.y = sheep->parent.y - dog->parent.y;
         r_rel_mag_sq = jty_vector_mag_sq(r_rel); 
         if (r_rel_mag_sq < pow(dog->scare_radius_max, 2)) {
             sheep->parent.ax += 1 / r_rel_mag_sq * r_rel.x * sheep->fear_acceleration;
