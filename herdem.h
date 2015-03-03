@@ -1,9 +1,10 @@
 #ifndef HERDEM_H
 #define HERDEM_H
 
+
 #include "jaunty/jaunty.h"
+void eight_way_direction_change(jty_actor *a);
 #include "herdem_sheep.h"
-#include "herdem_dog.h"
 
 typedef enum herdem_consts {
     WIN_W = 800,
@@ -24,6 +25,8 @@ typedef enum herdem_player_action {
     HERDEM_MOVE_E = 1<<1,
     HERDEM_MOVE_S = 1<<2,
     HERDEM_MOVE_W = 1<<3} herdem_player_action;
+
+#include "herdem_dog.h"
 
 typedef struct herdem_eng herdem_eng;
 

@@ -1,5 +1,73 @@
 #include "herdem.h"
 
+
+/**
+ * Sets the current sprite of actor `a` so that
+ * it corresponds to its velocity (assuming there
+ * are 8 different direction spirtes
+ */
+void eight_way_direction_change(jty_actor *a)
+{
+    /* b = (cos(22.5))**2 */
+    double b = 0.8535533905932737;
+    double x, y;
+
+    x = 1 / (1 + a->vy * a->vy / (a->vx * a->vx));
+    if (a->vx == 0 && a->vy == 0) {
+        if (a->current_sprite < 8) {
+            a->current_sprite += 8;
+        }
+        return;
+    }
+
+    if (x > b) {
+        if (a->vx > 0) {
+            /* Travelling E */
+            a->current_sprite = DIRECTION_E;
+            return;
+        } else {
+            /* Travelling W */
+            a->current_sprite = DIRECTION_W;
+            return;
+        }
+    }
+
+    y = 1 / (1 + a->vx * a->vx / (a->vy * a->vy));
+    if (y > b) {
+        if (a->vy < 0) {
+            /* Travelling N */
+            a->current_sprite = DIRECTION_N;
+            return;
+        } else {
+            /* Travelling S */
+            a->current_sprite = DIRECTION_S;
+            return;
+        }
+    }
+
+    if (a->vx > 0 && a->vy < 0) {
+        /* Travelling NE */
+        a->current_sprite = DIRECTION_NE;
+        return;
+    }
+
+    if (a->vx < 0 && a->vy < 0) {
+        /* Travelling NW */
+        a->current_sprite = DIRECTION_NW;
+        return;
+    }
+
+    if (a->vx < 0 && a->vy > 0) {
+        /* Travelling SW */
+        a->current_sprite = DIRECTION_SW;
+        return;
+    }
+
+    a->current_sprite = DIRECTION_SE;
+
+}
+
+
 /**
  * Creates a new herdem_eng
  */
