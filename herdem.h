@@ -6,6 +6,7 @@
 void eight_way_direction_change(jty_actor *a);
 #include "herdem_sheep.h"
 #include "herdem_timer.h"
+#include "herdem_saved_tally.h"
 
 typedef enum herdem_consts {
     WIN_W = 800,

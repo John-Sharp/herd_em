@@ -39,9 +39,9 @@ herdem_info_board *herdem_info_board_init(herdem_info_board *info_board)
             20, 
             (jty_map *)info_board);
 
-    // info_board->saved_tally = new_herdem_saved_tally(
-    //         ib_tw,
-    //         20,
-    //         (jty_map *)herdem_engine->info_board);
+    info_board->saved_tally = new_herdem_saved_tally(
+             ib_tw / 2,
+             20,
+             (jty_map *)info_board);
     return info_board;
 }

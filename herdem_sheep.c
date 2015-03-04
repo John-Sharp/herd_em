@@ -145,6 +145,7 @@ void herdem_sheep_iterator(jty_actor *actor)
 
     if (jty_actor_has_left_map(actor)) {
         herdem_engine->saved_sheeps += 1;
+        herdem_saved_tally_update(herdem_engine->info_board->saved_tally);
         
         fprintf(stderr, "A sheep has been saved!!\n");
         free_herdem_sheep(sheep);

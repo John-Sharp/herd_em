@@ -13,20 +13,13 @@ void set_up_level_one()
     int map_w = 25, map_h = 17, tw = 32, th = 32;
     herdem_dog *dog;
     herdem_sheep *sheep;
-    //jty_txt_actor *saved_tally;
+
+    herdem_engine->target_sheeps = 2;
+    herdem_engine->saved_sheeps = 0;
+    herdem_engine->level_start_time = SDL_GetTicks();
 
     /* Creating info board */
     herdem_engine->info_board = new_herdem_info_board();
-
-    // saved_tally = new_jty_txt_actor(
-    //         1,
-    //         800,
-    //         20,
-    //         herdem_engine->info_board);
-    // pango_layout_set_alignment(saved_tally->layout, PANGO_ALIGN_RIGHT);
-    // jty_txt_actor_set_text(saved_tally, "<span foreground=\"#FFFFFF\"> 0/2 sheep herded </span>");
-    // saved_tally->parent.x = saved_tally->parent.px = 400;
-    // saved_tally->parent.y = saved_tally->parent.py = 20;
 
     /* Creating map */
     if(!(herdem_engine->parent.map = new_jty_map(
@@ -101,10 +94,6 @@ void set_up_level_one()
     sheep->parent.y = sheep->parent.py = 200;
     sheep->parent.vx = 100;
     sheep->parent.vy = 100;
-
-    herdem_engine->target_sheeps = 2;
-    herdem_engine->saved_sheeps = 0;
-    herdem_engine->level_start_time = SDL_GetTicks();
 }
 
 bool is_level_one_finished()
