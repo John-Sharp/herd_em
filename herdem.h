@@ -28,13 +28,14 @@ typedef enum herdem_player_action {
     HERDEM_MOVE_W = 1<<3} herdem_player_action;
 
 #include "herdem_dog.h"
+#include "herdem_info_board.h"
 
 typedef struct herdem_eng herdem_eng;
 
 struct herdem_eng {
     jty_eng parent;
 
-    jty_map *info_board; /* Map for showing the current number of sheep saved,
+    herdem_info_board *info_board; /* Map for showing the current number of sheep saved,
                              time and other information */
 
     int total_sheeps;

@@ -11,35 +11,22 @@
 void set_up_level_one()
 {
     int map_w = 25, map_h = 17, tw = 32, th = 32;
-    int ib_w = 1, ib_h = 1, ib_tw = WIN_W, ib_th = WIN_H;
     herdem_dog *dog;
     herdem_sheep *sheep;
-    jty_txt_actor *saved_tally;
+    //jty_txt_actor *saved_tally;
 
     /* Creating info board */
+    herdem_engine->info_board = new_herdem_info_board();
 
-    if(!(herdem_engine->info_board = new_jty_map(
-                    ib_w, ib_h, ib_tw, ib_th,
-                    "images/ib.png",
-                    "a",
-                    "a",
-                    "a"))) {
-        fprintf(stderr, "Error loading info board!\n");
-        exit(1);
-    }
-    herdem_engine->info_board->map_rect.y = WIN_H - ib_th;
-
-    saved_tally = new_jty_txt_actor(
-            1,
-            800,
-            20,
-            herdem_engine->info_board);
-    pango_layout_set_alignment(saved_tally->layout, PANGO_ALIGN_RIGHT);
-    jty_txt_actor_set_text(saved_tally, "<span foreground=\"#FFFFFF\"> 0/2 sheep herded </span>");
-    saved_tally->parent.x = saved_tally->parent.px = 400;
-    saved_tally->parent.y = saved_tally->parent.py = 20;
-    new_herdem_timer(400, 20);
-
+    // saved_tally = new_jty_txt_actor(
+    //         1,
+    //         800,
+    //         20,
+    //         herdem_engine->info_board);
+    // pango_layout_set_alignment(saved_tally->layout, PANGO_ALIGN_RIGHT);
+    // jty_txt_actor_set_text(saved_tally, "<span foreground=\"#FFFFFF\"> 0/2 sheep herded </span>");
+    // saved_tally->parent.x = saved_tally->parent.px = 400;
+    // saved_tally->parent.y = saved_tally->parent.py = 20;
 
     /* Creating map */
     if(!(herdem_engine->parent.map = new_jty_map(

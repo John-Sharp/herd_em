@@ -5,11 +5,11 @@
 /**
  * Allocates and initialises a new timer
  */
-jty_txt_actor *new_herdem_timer(int x, int y)
+jty_txt_actor *new_herdem_timer(int x, int y, jty_map *map)
 {
     jty_txt_actor *timer = malloc(sizeof(*timer));
 
-    herdem_timer_init(timer, x, y);
+    herdem_timer_init(timer, x, y, map);
 
     return timer;
 }
@@ -18,11 +18,15 @@ jty_txt_actor *new_herdem_timer(int x, int y)
  * Initialises a herdem_timer. Automatically called 
  * by `new_herdem_timer`
  */
-jty_txt_actor *herdem_timer_init(jty_txt_actor *timer, int x, int y)
+jty_txt_actor *herdem_timer_init(
+        jty_txt_actor *timer,
+        int x,
+        int y,
+        jty_map *map)
 {
     jty_txt_actor_init(timer, 1, 
-            herdem_engine->info_board,
-            herdem_engine->info_board->map_rect.w,
+            map,
+            map->map_rect.w,
             20);
     jty_txt_actor_set_text(
             timer,

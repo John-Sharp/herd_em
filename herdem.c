@@ -139,7 +139,7 @@ void free_herdem_eng(herdem_eng *hep)
  */
 void herdem_iterate()
 {
-    jty_map_iterate(herdem_engine->info_board);
+    jty_map_iterate((jty_map *)herdem_engine->info_board);
 
     jty_iterate();
 }
@@ -150,7 +150,7 @@ void herdem_iterate()
  */
 void herdem_paint()
 {
-    jty_map_paint(herdem_engine->info_board);
+    jty_map_paint((jty_map *)herdem_engine->info_board);
 
     jty_paint();
 }
