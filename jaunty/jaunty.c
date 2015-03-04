@@ -130,7 +130,7 @@ static void initialise_video(unsigned int win_w,
         unsigned int win_h)
 {
     const SDL_VideoInfo *info = NULL;
-    int flags = SDL_OPENGL;
+    int flags = SDL_OPENGL;// | SDL_FULLSCREEN;
     
     if(SDL_Init(SDL_INIT_VIDEO) == -1){
         fprintf(stderr, "Video initialisation failed: %s\n", SDL_GetError());

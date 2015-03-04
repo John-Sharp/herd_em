@@ -9,8 +9,8 @@ void eight_way_direction_change(jty_actor *a);
 #include "herdem_saved_tally.h"
 
 typedef enum herdem_consts {
-    WIN_W = 800,
-    WIN_H = 600,
+    WIN_W = 1024,
+    WIN_H = 768,
     HERDEM_ANIMATION_FRAMERATE = 8,
     FPS = 300
 } herdem_consts;
