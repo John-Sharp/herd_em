@@ -236,6 +236,7 @@ static int jty_map_from_string(jty_map *map,
     src.w = map->tw;
     src.h = map->th;
 
+    SDL_SetAlpha(map->tilepalette, 0, 0);
     for(j = 0; j < map->h; j++)
         for(i = 0; i < map->w; i++){
             dst.x = i * map->tw;
@@ -248,17 +249,16 @@ static int jty_map_from_string(jty_map *map,
             SDL_BlitSurface(map->tilepalette, &src, map_image, &dst); 
         }
 
-    // static int n = 0;
-    // char fname[500];
-    // sprintf(fname, "map%d.bmp", n);
+#ifdef JTY_SAVE_MAPS
+    static int n = 0;
+    char fname[500];
+    sprintf(fname, "map_images/map%d.bmp", n);
 
-    // SDL_UnlockSurface(map_image);
-    // if(!SDL_SaveBMP(map_image, fname)) {
-    //     fprintf(stderr, "level image saving failed: %s\n", SDL_GetError());
-    //     //exit(-1);
-    // }
-    //SDL_UnlockSurface(map_image);
-    // n++;
+    if(!SDL_SaveBMP(map_image, fname)) {
+        fprintf(stderr, "level image saving failed: %s\n", SDL_GetError());
+    }
+    n++;
+#endif
 
     /* create an openGL texture and bind the sprite's image
      * to it */

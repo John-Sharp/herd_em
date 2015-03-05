@@ -16,6 +16,7 @@
 #include <string.h>
 
 #define DEBUG_MODE
+#define JTY_SAVE_MAPS
 
 #ifdef DEBUG_MODE
 #define POLL_TIME 2 /* Number of seconds that must elapse before a 
