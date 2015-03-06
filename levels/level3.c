@@ -28,12 +28,12 @@ void set_up_level_three()
                 "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiir"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiiriiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiik"
+                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
+                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
+                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
+                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
+                "hiiiiiiiiiiiiriiiiiiiiiiiiiiiiij"
+                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
                 "hiiiiiiiiiiiikiiiiiiiiiiiiiiiiij"
@@ -84,34 +84,34 @@ void set_up_level_three()
             herdem_dog_sheep_collision_handler);
 
     dog = new_herdem_dog();
-    dog->parent.x = dog->parent.px = 400;
-    dog->parent.y = dog->parent.py = 300;
+    dog->parent.x = dog->parent.px = 940;
+    dog->parent.y = dog->parent.py = 600;
     dog->parent.vx = dog->parent.vy = 0.0;
     dog->parent.ax = dog->parent.ay = 0.0;
 
     sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 100;
-    sheep->parent.y = sheep->parent.py = 300;
-    sheep->parent.vx = 0.5;
-    sheep->parent.vy = -0.5;
+    sheep->parent.x = sheep->parent.px = 505;
+    sheep->parent.y = sheep->parent.py = 74;
+    sheep->parent.vx = 0.2;
+    sheep->parent.vy = -0.1;
 
     sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 200;
-    sheep->parent.y = sheep->parent.py = 200;
-    sheep->parent.vx = 100;
-    sheep->parent.vy = 100;
+    sheep->parent.x = sheep->parent.px = 362;
+    sheep->parent.y = sheep->parent.py = 455;
+    sheep->parent.vx = 0.1;
+    sheep->parent.vy = 0.2;
 
     sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 200;
-    sheep->parent.y = sheep->parent.py = 300;
-    sheep->parent.vx = 100;
-    sheep->parent.vy = 100;
+    sheep->parent.x = sheep->parent.px = 341;
+    sheep->parent.y = sheep->parent.py = 578;
+    sheep->parent.vx = -0.1;
+    sheep->parent.vy = -0.1;
 
     sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 300;
-    sheep->parent.y = sheep->parent.py = 300;
-    sheep->parent.vx = -100;
-    sheep->parent.vy = 100;
+    sheep->parent.x = sheep->parent.px = 91;
+    sheep->parent.y = sheep->parent.py = 66;
+    sheep->parent.vx = 0.2;
+    sheep->parent.vy = 0.2;
 
 
 }
