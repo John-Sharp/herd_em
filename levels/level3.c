@@ -13,8 +13,8 @@ void set_up_level_three()
     herdem_engine->level_start_time = SDL_GetTicks();
     herdem_saved_tally_update(herdem_engine->info_board->saved_tally);
 
-    jty_engine->is_level_finished = is_level_two_finished;
-    jty_engine->clean_up_level = clean_up_level_two;
+    jty_engine->is_level_finished = is_level_three_finished;
+    jty_engine->clean_up_level = clean_up_level_three;
 
     /* Creating map */
     if(!(herdem_engine->parent.map = new_jty_map(
@@ -89,6 +89,7 @@ void set_up_level_three()
     dog->parent.y = dog->parent.py = 600;
     dog->parent.vx = dog->parent.vy = 0.0;
     dog->parent.ax = dog->parent.ay = 0.0;
+    dog->parent.current_sprite = DIRECTION_N;
 
     sheep = new_herdem_sheep();
     sheep->parent.x = sheep->parent.px = 505;

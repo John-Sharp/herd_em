@@ -85,34 +85,35 @@ void set_up_level_two()
             herdem_dog_sheep_collision_handler);
 
     dog = new_herdem_dog();
-    dog->parent.x = dog->parent.px = 400;
-    dog->parent.y = dog->parent.py = 300;
+    dog->parent.x = dog->parent.px = 940;
+    dog->parent.y = dog->parent.py = 258;
     dog->parent.vx = dog->parent.vy = 0.0;
     dog->parent.ax = dog->parent.ay = 0.0;
+    dog->parent.current_sprite = DIRECTION_W;
 
     sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 100;
-    sheep->parent.y = sheep->parent.py = 300;
-    sheep->parent.vx = 0.5;
+    sheep->parent.x = sheep->parent.px = 115;
+    sheep->parent.y = sheep->parent.py = 560;
+    sheep->parent.vx = 0.1;
+    sheep->parent.vy = 0.5;
+
+    sheep = new_herdem_sheep();
+    sheep->parent.x = sheep->parent.px = 540;
+    sheep->parent.y = sheep->parent.py = 350;
+    sheep->parent.vx = -0.5;
+    sheep->parent.vy = -0.1;
+
+    sheep = new_herdem_sheep();
+    sheep->parent.x = sheep->parent.px = 115;
+    sheep->parent.y = sheep->parent.py = 95;
+    sheep->parent.vx = -0.5;
     sheep->parent.vy = -0.5;
 
     sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 200;
-    sheep->parent.y = sheep->parent.py = 200;
-    sheep->parent.vx = 100;
-    sheep->parent.vy = 100;
-
-    sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 200;
-    sheep->parent.y = sheep->parent.py = 300;
-    sheep->parent.vx = 100;
-    sheep->parent.vy = 100;
-
-    sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 300;
-    sheep->parent.y = sheep->parent.py = 300;
-    sheep->parent.vx = -100;
-    sheep->parent.vy = 100;
+    sheep->parent.x = sheep->parent.px = 215;
+    sheep->parent.y = sheep->parent.py = 480;
+    sheep->parent.vx = -0.5;
+    sheep->parent.vy = -0.5;
 
 
 }

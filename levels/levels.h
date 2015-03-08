@@ -15,4 +15,20 @@ void set_up_level_three();
 bool is_level_three_finished();
 void clean_up_level_three();
 
+void set_up_level_four();
+bool is_level_four_finished();
+void clean_up_level_four();
+
+void set_up_level_five();
+bool is_level_five_finished();
+void clean_up_level_five();
+
+void set_up_level_six();
+bool is_level_six_finished();
+void clean_up_level_six();
+
+void set_up_level_seven();
+bool is_level_seven_finished();
+void clean_up_level_seven();
+
 #endif

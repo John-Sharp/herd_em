@@ -81,21 +81,23 @@ void set_up_level_one()
             herdem_dog_sheep_collision_handler);
 
     dog = new_herdem_dog();
-    dog->parent.x = dog->parent.px = 400;
-    dog->parent.y = dog->parent.py = 300;
+    dog->parent.x = dog->parent.px = 940;
+    dog->parent.y = dog->parent.py = 258;
     dog->parent.vx = dog->parent.vy = 0.0;
-
-    sheep = new_herdem_sheep();
-    sheep->parent.x = sheep->parent.px = 100;
-    sheep->parent.y = sheep->parent.py = 300;
-    sheep->parent.vx = 0.5;
-    sheep->parent.vy = -0.5;
+    dog->parent.ax = dog->parent.ay = 0.0;
+    dog->parent.current_sprite = DIRECTION_W;
 
     sheep = new_herdem_sheep();
     sheep->parent.x = sheep->parent.px = 200;
-    sheep->parent.y = sheep->parent.py = 200;
-    sheep->parent.vx = 100;
-    sheep->parent.vy = 100;
+    sheep->parent.y = sheep->parent.py = 137;
+    sheep->parent.vx = -0.5;
+    sheep->parent.vy = -0.5;
+
+    sheep = new_herdem_sheep();
+    sheep->parent.x = sheep->parent.px = 600;
+    sheep->parent.y = sheep->parent.py = 622;
+    sheep->parent.vx = -0.9;
+    sheep->parent.vy = 0.2;
 }
 
 bool is_level_one_finished()
