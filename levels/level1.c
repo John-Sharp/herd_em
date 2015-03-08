@@ -16,31 +16,32 @@ void set_up_level_one()
     if(!(herdem_engine->parent.map = new_jty_map(
                 map_w, map_h, tw, th,
                 "images/map.png",
-                "abcdefg"
-                "hijklmn"
-                "opqrstu",
-                "abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiir"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiik"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "oppppppppppppppppppppppppppppppq",
+                "ABCDEFGHIJK"
+                "LMNOPQRSTUV"
+                "WXYZabcdefg",
+                "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBC"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMZ"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMO"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "WXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXY",
+
                 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
                 "baaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"
@@ -108,6 +109,7 @@ bool is_level_one_finished()
 void clean_up_level_one()
 {
     fprintf(stderr, "Level lasted %f seconds\n", herdem_engine->level_time/1000.);
-    jty_engine->set_up_level = set_up_level_two;
+    //jty_engine->set_up_level = set_up_level_two;
+    jty_engine->set_up_level = NULL;
 }
 

@@ -20,31 +20,32 @@ void set_up_level_three()
     if(!(herdem_engine->parent.map = new_jty_map(
                 map_w, map_h, tw, th,
                 "images/map.png",
-                "abcdefg"
-                "hijklmn"
-                "opqrstu",
-                "abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiriiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiikiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "hiiiiiiiiiiiihiiiiiiiiiiiiiiiiij"
-                "oppppppppppppppppppppppppppeiidq",
+                "ABCDEFGHIJK"
+                "LMNOPQRSTUV"
+                "WXYZabcdefg",
+                "ABBBBBBBBBBBBbBBBBBBBBBBBBBBBBBC"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMaMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMPMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "LMMMMMMMMMMMMLMMMMMMMMMMMMMMMMMN"
+                "WXXXXXXXXXXXXQXXXXXXXXXXXXXEMMDY",
+
                 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
                 "baaaaaaaaaaaabaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaabaaaaaaaaaaaaaaaaab"
@@ -66,7 +67,7 @@ void set_up_level_three()
                 "baaaaaaaaaaaabaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaabaaaaaaaaaaaaaaaaab"
                 "baaaaaaaaaaaabaaaaaaaaaaaaaaaaab"
-                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbaabb"
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbccbb"
                 ))) {
         fprintf(stderr, "Error loading map\n");
         exit(1);
