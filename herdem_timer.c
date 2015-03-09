@@ -51,14 +51,24 @@ jty_txt_actor *herdem_timer_init(
 void herdem_timer_update(jty_actor *actor)
 {
     jty_txt_actor *timer = (jty_txt_actor *)actor;
+    int time_remaining = (int)herdem_engine->time_limit - (int)herdem_engine->level_time;
 
-    int minutes_elapsed = herdem_engine->level_time / 1000. / 60.;
-    int seconds_elapsed = (int)(herdem_engine->level_time / 1000.)  % 60;
+    int minutes_elapsed = time_remaining / 1000. / 60.;
+    int seconds_elapsed = (int)(time_remaining / 1000.)  % 60;
     char timer_text[200];
+    char red[] = "0000ff"; 
+    char white[] = "ffffff"; 
+    char *text_colour;
+
+    if (time_remaining <= 6 * 1000)
+        text_colour = red;
+    else
+        text_colour = white;
 
     sprintf(
             timer_text,
-            "<span foreground=\"#FFFFFF\" >%i:%02i</span>",
+            "<span foreground=\"#%s\" >%i:%02i</span>",
+            text_colour,
             minutes_elapsed,
             seconds_elapsed);
 

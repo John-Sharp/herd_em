@@ -11,6 +11,7 @@ void set_up_level_one()
     herdem_engine->target_sheeps = 2;
     herdem_engine->saved_sheeps = 0;
     herdem_engine->level_start_time = SDL_GetTicks();
+    herdem_engine->time_limit = 16 * 1000;
 
     /* Creating map */
     if(!(herdem_engine->parent.map = new_jty_map(
@@ -92,18 +93,23 @@ void set_up_level_one()
     sheep->parent.y = sheep->parent.py = 137;
     sheep->parent.vx = -0.5;
     sheep->parent.vy = -0.5;
+    sheep->parent.ax = sheep->parent.ay = 0;
 
     sheep = new_herdem_sheep();
     sheep->parent.x = sheep->parent.px = 600;
     sheep->parent.y = sheep->parent.py = 622;
     sheep->parent.vx = -0.9;
     sheep->parent.vy = 0.2;
+    sheep->parent.ax = sheep->parent.ay = 0;
 }
 
 bool is_level_one_finished()
 {
     herdem_engine->level_time = SDL_GetTicks() - herdem_engine->level_start_time;
-    if (herdem_engine->saved_sheeps == herdem_engine->target_sheeps)
+    if (
+            herdem_engine->saved_sheeps == herdem_engine->target_sheeps ||
+            herdem_engine->time_limit < herdem_engine->level_time
+       )
         return true;
     return false;
 }
@@ -111,7 +117,10 @@ bool is_level_one_finished()
 void clean_up_level_one()
 {
     fprintf(stderr, "Level lasted %f seconds\n", herdem_engine->level_time/1000.);
-    //jty_engine->set_up_level = set_up_level_two;
-    jty_engine->set_up_level = NULL;
+
+    if (herdem_engine->time_limit < herdem_engine->level_time)
+        jty_engine->set_up_level = set_up_level_one;
+    else 
+        jty_engine->set_up_level = set_up_level_two;
 }
 

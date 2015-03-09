@@ -20,9 +20,9 @@ int main(void)
     /* Creating info board */
     herdem_engine->info_board = new_herdem_info_board();
 
-    jty_engine->set_up_level = set_up_level_seven;
-    jty_engine->is_level_finished = is_level_seven_finished;
-    jty_engine->clean_up_level = clean_up_level_seven;
+    jty_engine->set_up_level = set_up_level_one;
+    jty_engine->is_level_finished = is_level_one_finished;
+    jty_engine->clean_up_level = clean_up_level_one;
     
     start_t = SDL_GetTicks();
 

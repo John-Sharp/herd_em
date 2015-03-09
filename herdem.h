@@ -47,6 +47,7 @@ struct herdem_eng {
                                 the level started */
     Uint32 level_time; /* length of time (in milliseconds) that the
                           player has been on the level */
+    Uint32 time_limit; /* Time limit for this level */
 
     jty_actor_ls *sheeps;
     jty_shape *sheep_c_shape;

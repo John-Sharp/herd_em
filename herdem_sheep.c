@@ -158,8 +158,8 @@ void herdem_sheep_iterator(jty_actor *actor)
         r_rel.y = sheep->parent.y - dog->parent.y;
         r_rel_mag_sq = jty_vector_mag_sq(r_rel); 
         if (r_rel_mag_sq < pow(dog->scare_radius_max, 2)) {
-            sheep->parent.ax += 1 / r_rel_mag_sq * r_rel.x * sheep->fear_acceleration;
-            sheep->parent.ay += 1 / r_rel_mag_sq * r_rel.y * sheep->fear_acceleration;
+            sheep->parent.ax = 1 / r_rel_mag_sq * r_rel.x * sheep->fear_acceleration;
+            sheep->parent.ay = 1 / r_rel_mag_sq * r_rel.y * sheep->fear_acceleration;
             sheep->panicked = true;
         }
     }
