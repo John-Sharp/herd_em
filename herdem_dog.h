@@ -20,6 +20,7 @@ struct herdem_dog {
     double scare_radius_min; /* radius where sheep run away with their max. speed */
     double scare_radius_max; /* maximum radius where sheep can see dog */
     double drag;
+
     herdem_player_action player_actions;
 };
 

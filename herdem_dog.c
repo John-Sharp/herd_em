@@ -116,6 +116,13 @@ void herdem_dog_input_handler(struct jty_actor *actor)
     if(SDL_PeepEvents(&selection, 1,
                 SDL_GETEVENT, SDL_EVENTMASK(SDL_KEYDOWN) |
                               SDL_EVENTMASK(SDL_KEYUP))){
+        if (
+                dog->player_actions == HERDEM_NONE &&
+                selection.key.type == SDL_KEYUP
+           ) {
+            return;
+        }
+
 
         switch(selection.key.keysym.sym){
             case SDLK_UP:

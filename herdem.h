@@ -23,6 +23,7 @@ typedef enum herdem_direction{
 } herdem_direction;
 
 typedef enum herdem_player_action {
+    HERDEM_NONE = 0,
     HERDEM_MOVE_N = 1,
     HERDEM_MOVE_E = 1<<1,
     HERDEM_MOVE_S = 1<<2,
