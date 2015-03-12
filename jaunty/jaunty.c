@@ -182,6 +182,10 @@ jty_eng *jty_eng_init(jty_eng *engine, unsigned int win_w, unsigned int win_h)
 
 void free_jty_map(jty_map *map)
 {
+    if (map == NULL) {
+        return;
+    }
+
     jty_actor *a;
 
     /* Free actors */

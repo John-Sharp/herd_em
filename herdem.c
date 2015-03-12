@@ -133,6 +133,7 @@ herdem_eng *herdem_eng_clean_up_level(herdem_eng *eng)
     }
 
     free_jty_map(jty_engine->map);
+    jty_engine->map = NULL;
 
     return eng;
 }
