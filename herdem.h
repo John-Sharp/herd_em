@@ -73,6 +73,12 @@ herdem_eng *new_herdem_eng();
 herdem_eng *herdem_eng_init(herdem_eng *eng);
 
 /**
+ * Frees all current sheep and dogs and 
+ * frees the level map
+ */
+herdem_eng *herdem_eng_clean_up_level();
+
+/**
  * Frees resources of herdem_eng
  */
 void free_herdem_eng(herdem_eng *hep);

@@ -118,9 +118,10 @@ void clean_up_level_one()
 {
     fprintf(stderr, "Level lasted %f seconds\n", herdem_engine->level_time/1000.);
 
+    herdem_eng_clean_up_level(herdem_engine);
+
     if (herdem_engine->time_limit < herdem_engine->level_time)
         jty_engine->set_up_level = set_up_level_one;
     else 
         jty_engine->set_up_level = set_up_level_two;
 }
-

@@ -140,6 +140,9 @@ bool is_level_six_finished()
 void clean_up_level_six()
 {
     fprintf(stderr, "Level lasted %f seconds\n", herdem_engine->level_time/1000.);
+
+    herdem_eng_clean_up_level(herdem_engine);
+
     jty_engine->set_up_level = NULL;
 }
 

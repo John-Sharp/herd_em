@@ -67,6 +67,7 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
  */
 void free_herdem_dog(herdem_dog *dog)
 {
+    herdem_engine->dogs = jty_actor_ls_rm(herdem_engine->dogs, (jty_actor *)dog);
     free_jty_actor((jty_actor *)dog);
 }
 

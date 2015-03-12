@@ -140,5 +140,8 @@ bool is_level_four_finished()
 void clean_up_level_four()
 {
     fprintf(stderr, "Level lasted %f seconds\n", herdem_engine->level_time/1000.);
+
+    hedem_eng_clean_up_level(herdem_engine);
+
     jty_engine->set_up_level = NULL;
 }

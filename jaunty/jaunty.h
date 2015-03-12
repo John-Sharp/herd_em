@@ -89,6 +89,7 @@ struct jty_vector {
 };
 
 #define jty_vector_mag_sq(v) (pow(v.x, 2) + pow(v.y, 2))
+#define jty_vector_mag(v) (sqrt(jty_vector_mag_sq(v)))
 
 struct jty_c_info {
     jty_entity e1; /* Entities that have collided */
@@ -302,7 +303,7 @@ struct jty_eng *jty_engine;
 
 
 /* Frees all resources allocated to 'map' */
-void jty_map_free(jty_map *map);
+void free_jty_map(jty_map *map);
 
 /* Creates a map, 'w' tiles wide by 'h' tiles high. The map is made out of
  * tiles 'tw' x 'th' pixels big. The constituent tile images are located in the

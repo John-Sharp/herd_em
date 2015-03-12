@@ -122,6 +122,21 @@ herdem_eng *herdem_eng_init(herdem_eng *hep)
     return hep;
 }
 
+herdem_eng *herdem_eng_clean_up_level(herdem_eng *eng)
+{
+    while(eng->dogs) {
+        free_herdem_dog((herdem_dog *)(eng->dogs->actor));
+    }
+
+    while(eng->sheeps) {
+        free_herdem_sheep((herdem_sheep *)(eng->sheeps->actor));
+    }
+
+    free_jty_map(jty_engine->map);
+
+    return eng;
+}
+
 /**
  * Frees resources of herdem_eng
  */

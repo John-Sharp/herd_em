@@ -180,7 +180,7 @@ jty_eng *jty_eng_init(jty_eng *engine, unsigned int win_w, unsigned int win_h)
 
 /* Map functions */
 
-void jty_map_free(jty_map *map)
+void free_jty_map(jty_map *map)
 {
     jty_actor *a;
 
@@ -338,17 +338,17 @@ jty_map *jty_map_init(
 
     map->tilepalette = IMG_Load(filename);
     if(!map->tilepalette){
-        jty_map_free(map);
+        free_jty_map(map);
         return NULL;
     }
 
     if(!jty_map_from_string(map, k, m)){
-        jty_map_free(map);
+        free_jty_map(map);
         return NULL;
     }
 
     if(!jty_map_set_cmap(map, cm)){
-        jty_map_free(map);
+        free_jty_map(map);
         return NULL;
     }
 
@@ -1733,7 +1733,7 @@ void jty_eng_free(void)
     SDL_Quit();        
 
     /* Free map */
-    jty_map_free(jty_engine->map);
+    free_jty_map(jty_engine->map);
 
 
     free(jty_engine);
