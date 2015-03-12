@@ -44,15 +44,15 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
             127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes
             );
 
-    double max_speed = 2.2;
-    double half_life = 10;
+    dog->normal_speed = 2.2;
+    double half_life = 20;
 
     dog->drag = 1 / half_life *  0.6931471805599453;
-    dog->acceleration = max_speed * dog->drag;
+    dog->acceleration = dog->normal_speed * dog->drag;
 
     dog->player_actions = 0;
-    dog->scare_radius_min = 60;
-    dog->scare_radius_max = 160;
+    dog->scare_radius_min = 110;
+    dog->scare_radius_max = 210;
     jty_actor_add_i_handler((jty_actor *)dog, herdem_dog_input_handler);
     jty_actor_add_i_handler((jty_actor *)dog, herdem_animation_handler);
     jty_actor_add_m_handler((jty_actor *)dog, herdem_dog_wall_handler, "bc");

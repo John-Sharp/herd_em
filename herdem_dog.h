@@ -16,6 +16,7 @@ typedef struct herdem_dog herdem_dog;
 
 struct herdem_dog {
     jty_actor parent;
+    double normal_speed;
     double acceleration;
     double scare_radius_min; /* radius where sheep run away with their max. speed */
     double scare_radius_max; /* maximum radius where sheep can see dog */
