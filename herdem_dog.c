@@ -44,7 +44,7 @@ herdem_dog *herdem_dog_init(herdem_dog *dog)
             127, 127, "images/sprites/dog/SE_still.png", herdem_engine->dog_c_shapes
             );
 
-    dog->normal_speed = 2.2;
+    dog->normal_speed = 1.7;
     double half_life = 20;
 
     dog->drag = 1 / half_life *  0.6931471805599453;

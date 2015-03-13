@@ -161,8 +161,10 @@ void herdem_sheep_iterator(jty_actor *actor)
             double r_rel_mag = sqrt(r_rel_mag_sq);
             double m = (dog->normal_speed - sheep->normal_speed) / (dog->scare_radius_min - dog->scare_radius_max);
             double c = dog->normal_speed - m * dog->scare_radius_min;
-            sheep->parent.vx = 1 / r_rel_mag * r_rel.x * (m * r_rel_mag + c);
-            sheep->parent.vy = 1 / r_rel_mag * r_rel.y * (m * r_rel_mag + c);
+            if (!sheep->touching_wall) {
+                sheep->parent.vx = 1 / r_rel_mag * r_rel.x * (m * r_rel_mag + c);
+                sheep->parent.vy = 1 / r_rel_mag * r_rel.y * (m * r_rel_mag + c);
+            }
             sheep->panicked = true;
         }
     }
@@ -177,12 +179,11 @@ void herdem_sheep_iterator(jty_actor *actor)
     sheep->parent.ax += -1 / sheep_speed * v.x * (sheep_speed - sheep->normal_speed) * 1;
     sheep->parent.ay += -1 / sheep_speed * v.y * (sheep_speed - sheep->normal_speed) * 1;
 
-    if (
-            sheep->touching_wall < 0 ||
-            sheep->touching_wall == HERDEM_SHEEP_WALL_RECOVER_FRAMES)
-    {
+    if (sheep->touching_wall == 0){
         eight_way_direction_change((jty_actor *)sheep);
     }
 
-    sheep->touching_wall -= 1;
+    if (sheep->touching_wall > 0) {
+        sheep->touching_wall -= 1;
+    }
 }
