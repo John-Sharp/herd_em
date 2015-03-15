@@ -113,16 +113,19 @@ void herdem_sheep_wall_handler(jty_c_info *c_info)
     a->y -= c_info->normal.y * (c_info->penetration + 1);
     sheep->touching_wall = HERDEM_SHEEP_WALL_RECOVER_FRAMES;
 
-    if (c_info->normal.x)
+    if (c_info->normal.x) {
         a->vx *= -1;
-    if (c_info->normal.y)
+    } if (c_info->normal.y) {
         a->vy *= -1;
+    }
 
     if (sheep->panicked == true) {
         if (c_info->normal.x) {
             a->vx = 0;
+            a->ax = 0;
         }else {
             a->vy = 0;
+            a->ay = 0;
         }
     }
 }
@@ -151,6 +154,11 @@ void herdem_sheep_iterator(jty_actor *actor)
         free_herdem_sheep(sheep);
         return;
     }
+
+    if (random() % 800 == 0) {
+        sheep->parent.vx = (float)random() / (float)RAND_MAX;
+        sheep->parent.vy = sqrt(1 - pow(sheep->parent.vx, 2));
+    }
    
     for (dog_ls = herdem_engine->dogs; dog_ls != NULL; dog_ls = dog_ls->next) {
         dog = (herdem_dog *)(dog_ls->actor);
@@ -172,6 +180,8 @@ void herdem_sheep_iterator(jty_actor *actor)
     jty_vector v = {.x = sheep->parent.vx, .y = sheep->parent.vy};
     double sheep_speed = sqrt(jty_vector_mag_sq(v));
     if (sheep_speed == 0) {
+        sheep->parent.vx = (float)random() / (float)RAND_MAX;
+        sheep->parent.vy = sqrt(1 - pow(sheep->parent.vx, 2));
         eight_way_direction_change((jty_actor *)sheep);
         return;
     }
