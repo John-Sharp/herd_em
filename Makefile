@@ -2,8 +2,11 @@ CC = gcc
 
 CFLAGS = -pg -g -Wall -lSDL_image -lm -lGL `pkg-config --cflags --libs pangocairo` `sdl-config --cflags --libs`				
 
+all: herdem
+
 herdem: main.c herdem.c herdem_dog.c herdem_sheep.c herdem_timer.c\
    	herdem_info_board.c herdem_saved_tally.c \
+	levels/inter_levels.c \
 	levels/level1.c levels/level2.c levels/level3.c \
 	levels/level4.c levels/level5.c levels/level6.c \
 	levels/level7.c \
@@ -14,6 +17,7 @@ herdem: main.c herdem.c herdem_dog.c herdem_sheep.c herdem_timer.c\
 	jaunty/jaunty.h
 	$(CC) main.c herdem.c herdem_dog.c herdem_sheep.c herdem_timer.c \
 		herdem_info_board.c herdem_saved_tally.c \
+		levels/inter_levels.c \
 		levels/level1.c levels/level2.c levels/level3.c \
 		levels/level4.c levels/level5.c levels/level6.c \
 		levels/level7.c \

@@ -123,5 +123,5 @@ void clean_up_level_one()
     if (herdem_engine->time_limit < herdem_engine->level_time)
         jty_engine->set_up_level = set_up_level_one;
     else 
-        jty_engine->set_up_level = set_up_level_two;
+        jty_engine->set_up_level = set_up_inter_level_one;
 }

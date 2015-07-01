@@ -10,6 +10,7 @@ void set_up_level_two()
 
     herdem_engine->target_sheeps = 4;
     herdem_engine->saved_sheeps = 0;
+    herdem_engine->time_limit = 19 * 1000;
     herdem_engine->level_start_time = SDL_GetTicks();
     herdem_saved_tally_update(herdem_engine->info_board->saved_tally);
 
@@ -121,7 +122,8 @@ void set_up_level_two()
 bool is_level_two_finished()
 {
     herdem_engine->level_time = SDL_GetTicks() - herdem_engine->level_start_time;
-    if (herdem_engine->saved_sheeps == herdem_engine->target_sheeps)
+    if (herdem_engine->saved_sheeps == herdem_engine->target_sheeps ||
+        herdem_engine->time_limit < herdem_engine->level_time)
         return true;
     return false;
 }
@@ -132,6 +134,9 @@ void clean_up_level_two()
 
     herdem_eng_clean_up_level(herdem_engine);
 
-    jty_engine->set_up_level = NULL;
+    if (herdem_engine->time_limit < herdem_engine->level_time)
+        jty_engine->set_up_level = set_up_level_two;
+    else 
+        jty_engine->set_up_level = set_up_inter_level_two;
 }
 
